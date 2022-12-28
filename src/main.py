@@ -90,7 +90,7 @@ def get_beers(request: Request):
 
         res = {"qty": 0, "results": []}
         for beer in query.dicts():
-            res["results"] += ([beer])
+            res["results"] += [beer]
 
         res["qty"] = len(res["results"])
         return res
