@@ -1,55 +1,19 @@
-import json
-import operator
-import urllib
+from fastapi import APIRouter, HTTPException, Request
+from database import db
+from models import Beer
 
-from fastapi import FastAPI, Request, HTTPException
-from peewee import *
+from typing_extensions import TypedDict
 
-import sys
-
-sys.path.append("..")
-from query_to_filters import query_to_filters
+from utils.query_to_filters import query_to_filters
 
 
-config = json.load(open("./config.json", "r"))
+router = APIRouter(prefix="/beers", responses={404: {"description": "Not found"}})
 
-app = FastAPI()
-
-db = PostgresqlDatabase(None)
-
-db_name = config["DATABASE"]
-db_host = config["PGHOST"]
-db_user = config["USER"]
-db_password = config["PASSWORD"]
-
-db.init(db_name, host=db_host, user=db_user, password=db_password)
-
-if db.connect():
-    print("Database connection established")
+Results = TypedDict("Results", {"qty": int, "results": list})
 
 
-class BaseModel(Model):
-    class Meta:
-        database = db
-
-
-################################
-# Beers
-
-
-class Beer(BaseModel):
-    id = BigAutoField(index=True, primary_key=True)
-    name = CharField(60)
-    style = CharField(50, null=True)
-    abv = DecimalField(3, 1, constraints=[Check("abv>=0")])
-    price = DecimalField(6, 2, constraints=[Check("price>0")])
-
-    class Meta:
-        table_name = "beers"
-
-
-@app.get("/beers/")
-def get_beers(request: Request):
+@router.get("/")
+async def get_beers(request: Request):
     with db.atomic():
         query = Beer.select()
         filters = query_to_filters(request["query_string"])
@@ -65,7 +29,7 @@ def get_beers(request: Request):
                 if filter["field"] == "price":
                     query = query.where(filter["op"](Beer.price, filter["value"]))
 
-        res = {"qty": 0, "results": []}
+        res: Results = {"qty": 0, "results": []}
         for beer in query.dicts():
             res["results"] += [beer]
 
@@ -73,7 +37,7 @@ def get_beers(request: Request):
         return res
 
 
-@app.get("/beers/{beer_id}")
+@router.get("/{beer_id}")
 async def get_beer_by_id(beer_id):
     with db.atomic():
         query = Beer.select().where(Beer.id == beer_id)
@@ -83,7 +47,7 @@ async def get_beer_by_id(beer_id):
             return query.get()
 
 
-@app.post("/beers/")
+@router.post("/")
 async def create_beer(request: Request):
     body = await request.json()
     with db.atomic():
@@ -97,7 +61,7 @@ async def create_beer(request: Request):
             )
 
 
-@app.delete("/beers/{beer_id}")
+@router.delete("/{beer_id}")
 async def delete_beer(beer_id):
     with db.atomic():
         query = Beer.select().where(Beer.id == beer_id)
