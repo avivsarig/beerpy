@@ -1,15 +1,18 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
+from peewee_dir.peewee import IntegrityError
 from database import db
 from models import Beer
-
-from typing_extensions import TypedDict
+# from urllib.error import HTTPError
 
 from utils.query_to_filters import query_to_filters
 
 
 router = APIRouter(prefix="/beers", responses={404: {"description": "Not found"}})
 
-Results = TypedDict("Results", {"qty": int, "results": list})
+
+class Results:
+    qty = int
+    results = list
 
 
 @router.get("/")
@@ -69,3 +72,20 @@ async def delete_beer(beer_id):
             raise HTTPException(status_code=404, detail="Beer not found")
         else:
             return Beer.delete().where(Beer.id == beer_id).execute()
+
+
+@router.put("/{beer_id}")
+async def update_beer(request: Request, beer_id):
+    body = await request.json()
+    try:
+        query = Beer.select().where(Beer.id == beer_id)
+        if not query.exists():
+            print("Should raise 404!")
+            raise HTTPException(status_code=404, detail="Beer not found")
+        else:
+            with db.atomic():
+                Beer.update(**body).where(Beer.id == beer_id).execute()
+
+    except IntegrityError as e:
+        print(e, flush = True)
+        return Response()
