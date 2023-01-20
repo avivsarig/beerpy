@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from peewee_dir.peewee import IntegrityError
 from database import db
 from models import Beer
+
 # from urllib.error import HTTPError
 
 from utils.query_to_filters import query_to_filters
@@ -87,5 +88,5 @@ async def update_beer(request: Request, beer_id):
                 Beer.update(**body).where(Beer.id == beer_id).execute()
 
     except IntegrityError as e:
-        print(e, flush = True)
+        print(e, flush=True)
         return Response()
