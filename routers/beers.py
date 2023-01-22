@@ -18,51 +18,47 @@ class Results:
 
 @router.get("/")
 async def get_beers(request: Request):
-    with db.atomic():
-        query = Beer.select()
-        filters = query_to_filters(request["query_string"])
-        if filters != []:
+    query = Beer.select()
+    filters = query_to_filters(request["query_string"])
+    if filters != []:
 
-            for filter in filters:
-                if filter["field"] == "name":
-                    query = query.where(Beer.name == filter["value"])
-                if filter["field"] == "style":
-                    query = query.where(Beer.style == filter["value"])
-                if filter["field"] == "abv":
-                    query = query.where(filter["op"](Beer.abv, filter["value"]))
-                if filter["field"] == "price":
-                    query = query.where(filter["op"](Beer.price, filter["value"]))
+        for filter in filters:
+            if filter["field"] == "name":
+                query = query.where(Beer.name == filter["value"])
+            if filter["field"] == "style":
+                query = query.where(Beer.style == filter["value"])
+            if filter["field"] == "abv":
+                query = query.where(filter["op"](Beer.abv, filter["value"]))
+            if filter["field"] == "price":
+                query = query.where(filter["op"](Beer.price, filter["value"]))
 
-        res: Results = {"qty": 0, "results": []}
-        for beer in query.dicts():
-            res["results"] += [beer]
+    res: Results = {"qty": 0, "results": []}
+    for beer in query.dicts():
+        res["results"] += [beer]
 
-        res["qty"] = len(res["results"])
-        return res
+    res["qty"] = len(res["results"])
+    return res
 
 
 @router.get("/{beer_id}")
 async def get_beer_by_id(beer_id):
-    with db.atomic():
-        query = Beer.select().where(Beer.id == beer_id)
-        if not query.exists():
-            raise HTTPException(status_code=404, detail="Beer not found")
-        else:
-            return query.get()
+    query = Beer.select().where(Beer.id == beer_id)
+    if not query.exists():
+        raise HTTPException(status_code=404, detail="Beer not found")
+    else:
+        return query.get()
 
 
 @router.post("/")
 async def create_beer(request: Request):
     body = await request.json()
-    with db.atomic():
-        try:
+    try:
+        with db.atomic():
             res = Beer.create(**body)
             return res
-        except:
-            raise HTTPException(
-                status_code=400,
-                detail="A beer must have a name, A positive ABV and a positive Value. Try again.",
-            )
+    except IntegrityError as e:
+        print(e, flush=True)
+        return Response()
 
 
 @router.delete("/{beer_id}")
@@ -81,7 +77,6 @@ async def update_beer(request: Request, beer_id):
     try:
         query = Beer.select().where(Beer.id == beer_id)
         if not query.exists():
-            print("Should raise 404!")
             raise HTTPException(status_code=404, detail="Beer not found")
         else:
             with db.atomic():

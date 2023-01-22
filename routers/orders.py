@@ -86,3 +86,19 @@ async def delete_order(order_id):
     except IntegrityError as e:
         print(e, flush=True)
         return Response()
+
+
+@router.put("/{order_id}")
+async def update(request: Request, order_id):
+    body = await request.json()
+    try:
+        query = Order.select().where(Order.id == order_id)
+        if not query.exists():
+            raise HTTPException(status_code=404, detail="Order not found")
+        else:
+            with db.atomic():
+                Order.update(**body).where(Order.id == order_id).execute()
+
+    except IntegrityError as e:
+        print(e, flush=True)
+        return Response()
