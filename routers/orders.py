@@ -9,11 +9,6 @@ from utils.query_to_filters import query_to_filters
 router = APIRouter(prefix="/orders", responses={404: {"description": "Not found"}})
 
 
-class Results:
-    qty = int
-    results = list
-
-
 @router.get("/")
 async def get_orders(request: Request):
     query = Order.select()
@@ -31,7 +26,7 @@ async def get_orders(request: Request):
             if filter["field"] == "price_paid":
                 query = query.where(filter["op"](Order.price_paid, filter["value"]))
 
-    res = {"qty": 0, "results": []}
+    res: dict = {"qty": 0, "results": []}
     for order in query.dicts():
         res["results"] += [order]
 
