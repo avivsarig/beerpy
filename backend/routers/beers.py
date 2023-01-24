@@ -11,11 +11,6 @@ from backend.utils.query_to_filters import query_to_filters
 router = APIRouter(prefix="/beers", responses={404: {"description": "Not found"}})
 
 
-class Results:
-    qty = int
-    results = list
-
-
 @router.get("/")
 async def get_beers(request: Request):
     query = Beer.select()
@@ -31,7 +26,7 @@ async def get_beers(request: Request):
             if filter["field"] == "price":
                 query = query.where(filter["op"](Beer.price, filter["value"]))
 
-    res: Results = {"qty": 0, "results": []}
+    res: dict = {"qty": 0, "results": []}
     for beer in query.dicts():
         res["results"] += [beer]
 
