@@ -17,11 +17,11 @@ async def get_users(request: Request):
         for filter in filters:
             if filter["field"] == "name":
                 query = query.where(User.name == filter["value"])
-            if filter["field"] == "email":
+            elif filter["field"] == "email":
                 query = query.where(User.email == filter["value"])
-            if filter["field"] == "address":
+            elif filter["field"] == "address":
                 query = query.where(User.address == filter["value"])
-            if filter["field"] == "phone":
+            elif filter["field"] == "phone":
                 query = query.where(User.phone == filter["value"])
 
     res: dict = {"qty": 0, "results": []}
