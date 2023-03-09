@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from peewee import *
-from routers import beers, orders
+from routers import beers, orders, users
 from database import db
 
 app = FastAPI()
