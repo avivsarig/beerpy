@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from peewee_dir.peewee import *
+from peewee import *
 from routers import beers, orders
 from database import db
 

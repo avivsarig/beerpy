@@ -1,6 +1,6 @@
+.gitignore
 __pycache__/
 archive/
-peewee_dir/
 routers/__pychache__/
 utils/__pychache__/
 config.json

@@ -1,4 +1,4 @@
-from peewee_dir.peewee import *
+from peewee import *
 from database import db
 
 

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request, Response
-from peewee_dir.peewee import IntegrityError
+from peewee import IntegrityError
 from database import db
 from models import Beer
 
@@ -21,7 +21,6 @@ async def get_beers(request: Request):
     query = Beer.select()
     filters = query_to_filters(request["query_string"])
     if filters != []:
-
         for filter in filters:
             if filter["field"] == "name":
                 query = query.where(Beer.name == filter["value"])

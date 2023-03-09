@@ -1,4 +1,4 @@
-from peewee_dir.peewee import *
+from peewee import *
 import json
 
 config = json.load(open("./config.json", "r"))
