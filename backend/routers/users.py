@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException, Request, Response
-from peewee_dir.peewee import IntegrityError
+from peewee import IntegrityError
 from database import db
 from models import User
 
 from utils.query_to_filters import query_to_filters
 
-router = APIRouter(prefix="/users", responses={404: {"description": "Not found"}})
+router = APIRouter(prefix="/users", responses={404: {"description": "Not found\n"}})
 
 
 @router.get("/")
@@ -35,7 +35,7 @@ async def get_users(request: Request) -> dict:
 async def get_user_by_id(user_id):
     query = User.select(User.id, User.name, User.address, User.phone)
     if not query.exists():
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found\n")
     else:
         return query.get()
 
@@ -56,7 +56,7 @@ async def create_user(request: Request):
 async def delete_user(user_id):
     query = User.select().where(User.id == user_id)
     if not query.exists():
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found\n")
     else:
         with db.atomic():
             return User.delete().where(User.id == user_id).execute()
@@ -68,7 +68,7 @@ async def update_user(request: Request, user_id):
     try:
         query = User.select().where(User.id == user_id)
         if not query.exists():
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail="User not found\n")
         else:
             with db.atomic():
                 User.update(**body).where(User.id == user_id).execute()
