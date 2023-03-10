@@ -1,6 +1,8 @@
 .gitignore
 __pycache__/
+.pytest_cache/
 archive/
 routers/__pychache__/
 utils/__pychache__/
 config.json
+.dmypy.json
