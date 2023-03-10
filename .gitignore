@@ -1,5 +1,15 @@
 .gitignore
+<<<<<<< HEAD
 ./backend/__pycache__/
 ./backend/routers/__pychache__/
 ./backend/utils/__pychache__/
 ./backend/config.json
+=======
+__pycache__/
+.pytest_cache/
+archive/
+routers/__pychache__/
+utils/__pychache__/
+config.json
+.dmypy.json
+>>>>>>> 06bca6e (gitignore: add mypy and pytest, trying tests at pytest)
