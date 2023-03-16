@@ -3,15 +3,15 @@ from fastapi.testclient import TestClient
 from peewee import PostgresqlDatabase, IntegrityError
 import pytest
 
-from ..routers import users
-from ..models import User
+from routers import users
+from models import User
 
 app = FastAPI()
 app.include_router(users.router)
 
 db = PostgresqlDatabase(
-    "test_db",
-    user="testing_user",
+    "test_beerpy",
+    user="test_user",
     password="iLoveTesting",
     host="localhost",
     port=5432,
@@ -19,32 +19,26 @@ db = PostgresqlDatabase(
 
 client = TestClient(app)
 
-
 def setup_module():
     db.bind([User])
     db.create_tables([User])
-    print("DB is up.")
-
 
 def teardown_module():
     db.drop_tables([User])
     db.close()
-    print("DB is down.")
 
+def create_user(name=None, email=None, password=None, address=None, phone=None):
+    payload = {key: value for key, value in locals().items() if value is not None}
 
-class TestCreateUser:
-    def create_user(name=None, email=None, password=None, address=None, phone=None):
-        payload = {key: value for key, value in locals().items() if value is not None}
+    return client.post("/users/", json=payload)
 
-        return client.post("/", json=payload)
+def test_create_response():
+    response = create_user("test_user", "test_email", "test_password")
 
-    def test_create_response():
-        response = self.create_user("test_user", "test_email", "test_password")
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "id": 1,
-            "name": "test_user",
-            "email": "test_email",
-            "password": "test_password",
-        }
+    assert response.status_code == 200
+    assert response.json()['__data__'] == {
+        "id": 1,
+        "name": "test_user",
+        "email": "test_email",
+        "password": "test_password",
+    }
