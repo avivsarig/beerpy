@@ -21,7 +21,7 @@ class Beer(BaseModel):
 class User(BaseModel):
     id = BigAutoField(index=True, primary_key=True)
     name = CharField(60)
-    email = CharField(60)
+    email = CharField(60, unique=True)
     password = CharField(60)
     address = CharField(60, null=True)
     phone = CharField(12, null=True)
