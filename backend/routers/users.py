@@ -5,9 +5,9 @@ from backend.database import db
 from backend.models import User
 
 from backend.utils.query_to_filters import query_to_filters
+from backend.utils.error_handler import response_from_error
 
 router = APIRouter(prefix="/users", responses={404: {"description": "Not found\n"}})
-
 
 @router.get("/")
 async def get_users(request: Request) -> dict:
@@ -34,7 +34,7 @@ async def get_users(request: Request) -> dict:
 
 @router.get("/{user_id}")
 async def get_user_by_id(user_id):
-    query = User.select(User.id, User.name, User.address, User.phone)
+    query = User.select(User.id, User.name, User.email, User.address, User.phone)
     if not query.exists():
         raise HTTPException(status_code=404, detail="User not found\n")
     else:
@@ -46,11 +46,12 @@ async def create_user(request: Request):
     body = await request.json()
     try:
         with db.atomic():
-            res = User.create(**body)
-            return res
+            User.create(**body)
+            return Response(status_code=201)
+
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.delete("/{user_id}")
@@ -60,7 +61,8 @@ async def delete_user(user_id):
         raise HTTPException(status_code=404, detail="User not found\n")
     else:
         with db.atomic():
-            return User.delete().where(User.id == user_id).execute()
+            User.delete().where(User.id == user_id).execute()
+            return Response(status_code=204)
 
 
 @router.put("/{user_id}")
@@ -74,5 +76,5 @@ async def update_user(request: Request, user_id):
             with db.atomic():
                 User.update(**body).where(User.id == user_id).execute()
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
