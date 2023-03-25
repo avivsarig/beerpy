@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from peewee import *
-from routers import beers, orders
-from database import db
+from backend.routers import beers, orders
+from backend.database import db
 
 app = FastAPI()
 app.include_router(beers.router)
