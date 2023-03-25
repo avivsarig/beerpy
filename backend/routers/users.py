@@ -1,22 +1,11 @@
 from fastapi import APIRouter, HTTPException, Request, Response
-<<<<<<< HEAD:backend/routers/users.py
-<<<<<<< HEAD:backend/routers/users.py
 from peewee import IntegrityError
-=======
-from peewee_dir.peewee import IntegrityError
->>>>>>> 8aafe6e (created users.py file in routers folder, added the router to main.py):routers/users.py
-=======
-from peewee import IntegrityError
->>>>>>> afa7e54 (new line in messages, peewee location edited):routers/users.py
-from database import db
-from models import User
 
-from utils.query_to_filters import query_to_filters
+from backend.database import db
+from backend.models import User
 
-<<<<<<< HEAD:backend/routers/users.py
-<<<<<<< HEAD:backend/routers/users.py
-=======
->>>>>>> afa7e54 (new line in messages, peewee location edited):routers/users.py
+from backend.utils.query_to_filters import query_to_filters
+
 router = APIRouter(prefix="/users", responses={404: {"description": "Not found\n"}})
 
 
@@ -87,6 +76,3 @@ async def update_user(request: Request, user_id):
     except IntegrityError as e:
         print(e, flush=True)
         return Response()
-=======
-router = APIRouter(prefix="/users", responses={404: {"description": "Not found"}})
->>>>>>> 8aafe6e (created users.py file in routers folder, added the router to main.py):routers/users.py
