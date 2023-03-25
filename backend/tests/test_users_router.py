@@ -158,6 +158,7 @@ class Test_get_all:
                 data_string = payload_to_string(data)
                 db.execute_sql(f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string});")
 
+        query = User.select(User.id, User.name, User.email, User.address, User.phone)
         response = client.get("/users/")
         print(response.json()['results'])
-        assert False
+        assert query == response
