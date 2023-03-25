@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Request, Response
 from peewee import IntegrityError
-from database import db
-from models import Order, Beer, User
+from backend.database import db
+from backend.models import Order, Beer, User
 
-from utils.query_to_filters import query_to_filters
+from backend.utils.query_to_filters import query_to_filters
 
 
 router = APIRouter(prefix="/orders", responses={404: {"description": "Not found"}})

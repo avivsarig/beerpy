@@ -1,7 +1,7 @@
 from peewee import *
 import json
 
-config = json.load(open("./config.json", "r"))
+config = json.load(open("./backend/config.json", "r"))
 
 db = PostgresqlDatabase(None)
 

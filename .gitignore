@@ -1,6 +1,5 @@
 .gitignore
-__pycache__/
-archive/
-routers/__pychache__/
-utils/__pychache__/
-config.json
+./backend/__pycache__/
+./backend/routers/__pychache__/
+./backend/utils/__pychache__/
+./backend/config.json
