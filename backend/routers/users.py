@@ -9,6 +9,7 @@ from backend.utils.error_handler import response_from_error
 
 router = APIRouter(prefix="/users", responses={404: {"description": "Not found\n"}})
 
+
 @router.get("/")
 async def get_users(request: Request) -> dict:
     query = User.select(User.id, User.name, User.address, User.phone)

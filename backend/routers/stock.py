@@ -14,7 +14,6 @@ async def get_stock(request: Request):
     query = Stock.select()
     filters = query_to_filters(request["query_string"])
     if filters != []:
-
         for filter in filters:
             if filter["field"] == "beer_id":
                 query = query.where(Stock.beer_id == filter["value"])
