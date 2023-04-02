@@ -11,11 +11,6 @@ from backend.utils.query_to_filters import query_to_filters
 router = APIRouter(prefix="/beers", responses={404: {"description": "Not found"}})
 
 
-class Results:
-    qty = int
-    results = list
-
-
 @router.get("/")
 async def get_beers(request: Request):
     query = Beer.select()
@@ -31,7 +26,7 @@ async def get_beers(request: Request):
             if filter["field"] == "price":
                 query = query.where(filter["op"](Beer.price, filter["value"]))
 
-    res: Results = {"qty": 0, "results": []}
+    res: dict = {"qty": 0, "results": []}
     for beer in query.dicts():
         res["results"] += [beer]
 
@@ -62,11 +57,11 @@ async def create_beer(request: Request):
 
 @router.delete("/{beer_id}")
 async def delete_beer(beer_id):
-    with db.atomic():
-        query = Beer.select().where(Beer.id == beer_id)
-        if not query.exists():
-            raise HTTPException(status_code=404, detail="Beer not found")
-        else:
+    query = Beer.select().where(Beer.id == beer_id)
+    if not query.exists():
+        raise HTTPException(status_code=404, detail="Beer not found")
+    else:
+        with db.atomic():
             return Beer.delete().where(Beer.id == beer_id).execute()
 
 
