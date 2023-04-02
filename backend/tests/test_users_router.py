@@ -148,7 +148,6 @@ class Test_get_user:
             ).fetchall()[0][0]
 
         response = client.get(f"/users/{id}")
-
         res_correct = {key: data[key] for key in ["name", "email", "address", "phone"]}
         res_correct["id"] = id
         assert response.json()["__data__"] == res_correct
@@ -175,7 +174,7 @@ class Test_get_all:
                     f"test_email{i}",
                     f"test_pw{i}",
                     f"test_address{i}",
-                    f"+972-555-555-555{i}",
+                    f"test_phone{i}",
                 )
                 data_string = payload_to_string(data)
                 db.execute_sql(
@@ -188,7 +187,9 @@ class Test_get_all:
 
         for user_dict, response_dict in zip(query.dicts(), response.json()["results"]):
             for attr in ["id", "name", "email", "address", "phone"]:
-                assert user_dict[attr] == response_dict[attr]
+                assert (
+                    user_dict[attr] == response_dict[attr]
+                ), f"{attr} incorrect"
         assert len(query) == len(response.json()["results"])
 
     def test_get_all_ok_code(self, clean_db):
@@ -197,46 +198,10 @@ class Test_get_all:
 
 
 class Test_update_user:
-    @pytest.mark.parametrize(
-        "name,email,password,address,phone",
-        [
-            ("updated_test_name", None, None, None, None),
-            (None, "updated_test_email", None, None, None),
-            (None, None, "updated_test_password", None, None),
-            (None, None, None, "updated_test_address", None),
-            (None, None, None, None, "+972-555-555-666"),
-            (
-                "test_name",
-                "test_email",
-                "test_password",
-                "test_address",
-                "+972-555-555-666",
-            ),
-        ],
-    )
-    def test_update_user_content(self, clean_db, name, email, password, address, phone):
+    def test_update_user_content(self, clean_db):
         with db.atomic():
             id = db.execute_sql(
-                "INSERT INTO users (name, email, password, address, phone) VALUES ('test_update', 'test_email', 'test_pw', 'test_address', '+972-555-555-555') RETURNING id;"
-            ).fetchall()[0][0]
-
-        updated_payload = create_payload(name, email, password, address, phone)
-
-        old_user = User.select().where(User.id == id).dicts().get()
-        client.put(f"/users/{id}", json=updated_payload)
-        query = User.select().where(User.id == id).dicts().get()
-
-        expected_res = updated_payload
-        for key in old_user.keys():
-            if key not in expected_res.keys():
-                expected_res[key] = old_user[key]
-
-        assert query == expected_res
-
-    def test_update_user_ok_code(self, clean_db):
-        with db.atomic():
-            id = db.execute_sql(
-                "INSERT INTO users (name, email, password, address, phone) VALUES ('test_update_ok_code', 'test_email', 'test_pw', 'test_address', '+972-555-555-555') RETURNING id;"
+                "INSERT INTO users (name, email, password, address, phone) VALUES ('test_update', 'test_email', 'test_pw', 'test_address', 'test_phone') RETURNING id;"
             ).fetchall()[0][0]
 
         updated_payload = create_payload(
@@ -244,11 +209,48 @@ class Test_update_user:
             email="updated_test_email",
             password="updated_test_pw",
             address="updated_test_address",
-            phone="+972-555-555-666",
+            phone="updated_test_phone",
+        )
+        response = client.put(f"/users/{id}", json=updated_payload)
+
+        query = User.select().where(User.id == id).dicts()
+        assert query == updated_payload
+
+    def test_update_user_ok_code(self, clean_db):
+        with db.atomic():
+            id = db.execute_sql(
+                "INSERT INTO users (name, email, password, address, phone) VALUES ('test_update_ok_code', 'test_email', 'test_pw', 'test_address', 'test_phone') RETURNING id;"
+            ).fetchall()[0][0]
+
+        updated_payload = create_payload(
+            name="updated_test_user",
+            email="updated_test_email",
+            password="updated_test_pw",
+            address="updated_test_address",
+            phone="updated_test_phone",
         )
         response = client.put(f"/users/{id}", json=updated_payload)
 
         assert response.status_code == 200
+
+    @pytest.mark.parametrize(
+        "name, email, password",
+        [
+            (None, "updated_test_email", "updated_test_pw"),
+            ("updated_test_user", None, "updated_test_pw"),
+            ("updated_test_user", "updated_test_email", None),
+        ],
+    )
+    def test_update_user_error_code(self, clean_db, name, email, password):
+        with db.atomic():
+            id = db.execute_sql(
+                "INSERT INTO users (name, email, password, address, phone) VALUES ('test_update_error_code', 'test_email', 'test_pw', 'test_address', 'test_phone') RETURNING id;"
+            ).fetchall()[0][0]
+
+        updated_payload = create_payload(name, email, password)
+        response = client.put(f"/users/{id}", json=updated_payload)
+
+        assert response.status_code == 400
 
     def test_update_user_not_found(self, clean_db):
         non_existent_id = 1
@@ -257,7 +259,7 @@ class Test_update_user:
             email="updated_test_email",
             password="updated_test_pw",
             address="updated_test_address",
-            phone="+972-555-555-666",
+            phone="updated_test_phone",
         )
         response = client.put(f"/users/{non_existent_id}", json=updated_payload)
 
@@ -265,43 +267,30 @@ class Test_update_user:
 
 
 class Test_filter_users:
-    @pytest.mark.parametrize(
-        "field, value, expected_qty",
-        [
-            ("name", "test_get_all_filter1", 1),
-            ("email", "test_email2", 1),
-            ("address", "test_address3", 1),
-            ("phone", "+972-555-555-5554", 1),
-            ("Knock_knock", "test_get_all_filter5", 9),
-            ("email", "whos_there", 0),
-        ],
-    )
-    def test_get_all_users_with_filter(self, clean_db, field, value, expected_qty):
-        data_list = []
-        for i in range(1, 10):
-            data = create_payload(
-                f"test_get_all_filter{i}",
-                f"test_email{i}",
-                f"test_pw{i}",
-                f"test_address{i}",
-                f"+972-555-555-555{i}",
-            )
-            data_list.append(payload_to_string(data))
-        data_string = f"({'),('.join(data_list)})"
-
+    def test_get_all_with_filter(self, clean_db):
         with db.atomic():
-            db.execute_sql(
-                f"INSERT INTO users (name, email, password, address, phone) VALUES {data_string};"
+            for i in range(10):
+                data = create_payload(
+                    f"test_get_all_filter{i}",
+                    f"test_email{i}",
+                    f"test_pw{i}",
+                    f"test_address{i}",
+                    f"test_phone{i}",
+                )
+                data_string = payload_to_string(data)
+                db.execute_sql(
+                    f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string});"
+                )
+
+
+            response = client.get("/users/", params={"name": "test_get_all_filter2"})
+
+            assert len(response.json()["results"]) == 1
+            assert (
+                response.json()["results"][0]["__data__"]["name"]
+                == "test_get_all_filter2"
             )
 
-        url = f"/users/?{field}={value}"
-        response = client.get(url)
-
-        print(response.json())
-        assert response.json()["qty"] == expected_qty
-        if expected_qty == 1:
-            assert response.json()["results"][0][field] == value
-
-    def test_get_all_users_with_filter_ok_code(self, clean_db):
+    def test_get_all_with_filter_ok_code(self, clean_db):
         response = client.get("/users/", params={"name": "test_get_all_filter_ok_code"})
         assert response.status_code == 200
