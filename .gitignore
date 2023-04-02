@@ -5,7 +5,7 @@ backend/utils/__pychache__/
 backend/config.json
 dist
 node_modules
-__pycache__/
+*/__pycache__/
 .pytest_cache/
 archive/
 tests/__pychache__/
