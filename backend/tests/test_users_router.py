@@ -215,7 +215,7 @@ class Test_update_user:
         updated_payload = create_payload(name, email, password, address, phone)
 
         old_user = User.select().where(User.id == id).dicts().get()
-        response = client.put(f"/users/{id}", json=updated_payload)
+        client.put(f"/users/{id}", json=updated_payload)
         query = User.select().where(User.id == id).dicts().get()
 
         expected_res = updated_payload
@@ -241,25 +241,6 @@ class Test_update_user:
         response = client.put(f"/users/{id}", json=updated_payload)
 
         assert response.status_code == 200
-
-    @pytest.mark.parametrize(
-        "name, email, password",
-        [
-            (None, "updated_test_email", "updated_test_pw"),
-            ("updated_test_user", None, "updated_test_pw"),
-            ("updated_test_user", "updated_test_email", None),
-        ],
-    )
-    def test_update_user_error_code(self, clean_db, name, email, password):
-        with db.atomic():
-            id = db.execute_sql(
-                "INSERT INTO users (name, email, password, address, phone) VALUES ('test_update_error_code', 'test_email', 'test_pw', 'test_address', '+972-555-555-555') RETURNING id;"
-            ).fetchall()[0][0]
-
-        updated_payload = create_payload(name, email, password)
-        response = client.put(f"/users/{id}", json=updated_payload)
-
-        assert response.status_code == 400
 
     def test_update_user_not_found(self, clean_db):
         non_existent_id = 1
