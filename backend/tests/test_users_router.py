@@ -73,7 +73,11 @@ class Test_create_user:
         response = client.post(
             "/users/",
             json=create_payload(
-                "test_user", "test_email", "test_password", "test_address", "+972-555-555-555"
+                "test_user",
+                "test_email",
+                "test_password",
+                "test_address",
+                "+972-555-555-555",
             ),
         )
         assert response.status_code == 201
@@ -131,7 +135,11 @@ class Test_delete_user:
 class Test_get_user:
     def test_get_by_id(self, clean_db):
         data = create_payload(
-            "test_get_by_id", "test_email", "test_pw", "test_address", "+972-555-555-555"
+            "test_get_by_id",
+            "test_email",
+            "test_pw",
+            "test_address",
+            "+972-555-555-555",
         )
         data_string = payload_to_string(data)
         with db.atomic():
@@ -192,13 +200,19 @@ class Test_update_user:
     @pytest.mark.parametrize(
         "name,email,password,address,phone",
         [
-        ("updated_test_name", None, None, None, None),
-        (None, "updated_test_email", None, None, None),
-        (None, None, "updated_test_password", None, None),
-        (None, None, None, "updated_test_address", None),
-        (None, None, None, None, "+972-555-555-666"),
-        ("test_name", "test_email", "test_password", "test_address", "+972-555-555-666")
-    ],
+            ("updated_test_name", None, None, None, None),
+            (None, "updated_test_email", None, None, None),
+            (None, None, "updated_test_password", None, None),
+            (None, None, None, "updated_test_address", None),
+            (None, None, None, None, "+972-555-555-666"),
+            (
+                "test_name",
+                "test_email",
+                "test_password",
+                "test_address",
+                "+972-555-555-666",
+            ),
+        ],
     )
     def test_update_user_content(self, clean_db, name, email, password, address, phone):
         with db.atomic():
@@ -206,13 +220,7 @@ class Test_update_user:
                 "INSERT INTO users (name, email, password, address, phone) VALUES ('test_update', 'test_email', 'test_pw', 'test_address', '+972-555-555-555') RETURNING id;"
             ).fetchall()[0][0]
 
-        updated_payload = create_payload(
-            name,
-            email,
-            password,
-            address,
-            phone
-        )
+        updated_payload = create_payload(name, email, password, address, phone)
 
         old_user = User.select().where(User.id == id).dicts().get()
         response = client.put(f"/users/{id}", json=updated_payload)
@@ -290,7 +298,6 @@ class Test_filter_users:
                 db.execute_sql(
                     f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string});"
                 )
-
 
             response = client.get("/users/", params={"name": "test_get_all_filter2"})
 
