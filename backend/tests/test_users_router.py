@@ -140,6 +140,7 @@ class Test_get_user:
             ).fetchall()[0][0]
 
         response = client.get(f"/users/{id}")
+
         res_correct = {key: data[key] for key in ["name", "email", "address", "phone"]}
         res_correct["id"] = id
         assert response.json()["__data__"] == res_correct
@@ -188,23 +189,41 @@ class Test_get_all:
 
 
 class Test_update_user:
-    def test_update_user_content(self, clean_db):
+    @pytest.mark.parametrize(
+        "name,email,password,address,phone",
+        [
+        ("updated_test_name", None, None, None, None),
+        (None, "updated_test_email", None, None, None),
+        (None, None, "updated_test_password", None, None),
+        (None, None, None, "updated_test_address", None),
+        (None, None, None, None, "+972-555-555-666"),
+        ("test_name", "test_email", "test_password", "test_address", "+972-555-555-666")
+    ],
+    )
+    def test_update_user_content(self, clean_db, name, email, password, address, phone):
         with db.atomic():
             id = db.execute_sql(
                 "INSERT INTO users (name, email, password, address, phone) VALUES ('test_update', 'test_email', 'test_pw', 'test_address', '+972-555-555-555') RETURNING id;"
             ).fetchall()[0][0]
 
         updated_payload = create_payload(
-            name="updated_test_user",
-            email="updated_test_email",
-            password="updated_test_pw",
-            address="updated_test_address",
-            phone="+972-555-555-666",
+            name,
+            email,
+            password,
+            address,
+            phone
         )
-        response = client.put(f"/users/{id}", json=updated_payload)
 
-        query = User.select().where(User.id == id).dicts()
-        assert query == updated_payload
+        old_user = User.select().where(User.id == id).dicts().get()
+        response = client.put(f"/users/{id}", json=updated_payload)
+        query = User.select().where(User.id == id).dicts().get()
+
+        expected_res = updated_payload
+        for key in old_user.keys():
+            if key not in expected_res.keys():
+                expected_res[key] = old_user[key]
+
+        assert query == expected_res
 
     def test_update_user_ok_code(self, clean_db):
         with db.atomic():
