@@ -76,6 +76,7 @@ async def update_user(request: Request, user_id):
         else:
             with db.atomic():
                 User.update(**body).where(User.id == user_id).execute()
+                return Response(status_code=200)
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)
