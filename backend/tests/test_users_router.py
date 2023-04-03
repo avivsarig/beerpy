@@ -263,31 +263,46 @@ class Test_update_user:
 
         assert response.status_code == 404
 
-
 class Test_filter_users:
-    def test_get_all_with_filter(self, clean_db):
+    @pytest.mark.parametrize(
+        "field, value, expected_qty",
+        [
+        ("name", "test_get_all_filter1", 1),
+        ("email", "test_email2", 1),
+        ("address", "test_address3", 1),
+        ("phone", "+972-555-555-5554", 1),
+        ("Knock_knock", "test_get_all_filter5", 9),
+        ("email", "whos_there", 0),
+        ])
+    def test_get_all_users_with_filter(self, clean_db, field, value, expected_qty):
+        data_list = []
+        for i in range(1,10):
+            data = create_payload(
+                f"test_get_all_filter{i}",
+                f"test_email{i}",
+                f"test_pw{i}",
+                f"test_address{i}",
+                f"+972-555-555-555{i}",
+            )
+            data_list.append(payload_to_string(data))
+        data_string = f"({'),('.join(data_list)})"
+
         with db.atomic():
-            for i in range(10):
-                data = create_payload(
-                    f"test_get_all_filter{i}",
-                    f"test_email{i}",
-                    f"test_pw{i}",
-                    f"test_address{i}",
-                    f"+972-555-555-555{i}",
-                )
-                data_string = payload_to_string(data)
-                db.execute_sql(
-                    f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string});"
-                )
-
-            response = client.get("/users/", params={"name": "test_get_all_filter2"})
-
-            assert len(response.json()["results"]) == 1
-            assert (
-                response.json()["results"][0]["__data__"]["name"]
-                == "test_get_all_filter2"
+            db.execute_sql(
+                f"INSERT INTO users (name, email, password, address, phone) VALUES {data_string};"
             )
 
-    def test_get_all_with_filter_ok_code(self, clean_db):
+        url = f"/users/?{field}={value}"
+        response = client.get(url)
+        
+        print(response.json())
+        assert response.json()["qty"] == expected_qty
+        if expected_qty == 1:
+            assert (    
+                response.json()["results"][0][field]
+                == value
+            )
+
+    def test_get_all_users_with_filter_ok_code(self, clean_db):
         response = client.get("/users/", params={"name": "test_get_all_filter_ok_code"})
         assert response.status_code == 200
