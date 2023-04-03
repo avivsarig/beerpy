@@ -24,7 +24,7 @@ class User(BaseModel):
     email = CharField(60, unique=True)
     password = CharField(60)
     address = CharField(60, null=True)
-    phone = CharField(12, null=True)
+    phone = CharField(20, null=True)
 
     class Meta:
         table_name = "users"
