@@ -35,7 +35,9 @@ async def get_users(request: Request) -> dict:
 
 @router.get("/{user_id}")
 async def get_user_by_id(user_id):
-    query = User.select(User.id, User.name, User.email, User.address, User.phone).where(User.id == user_id)
+    query = User.select(User.id, User.name, User.email, User.address, User.phone).where(
+        User.id == user_id
+    )
     if not query.exists():
         raise HTTPException(status_code=404, detail="User not found\n")
     else:
@@ -72,14 +74,14 @@ async def update_user(request: Request, user_id):
         query = User.select().where(User.id == user_id)
         if not query.exists():
             raise HTTPException(status_code=404, detail="User not found\n")
-        
-        user_from_db = query.get().__dict__['__data__']
+
+        user_from_db = query.get().__dict__["__data__"]
         body = await request.json()
-        
+
         for key in user_from_db.keys():
             if key not in body.keys():
                 body[key] = user_from_db[key]
-        
+
         with db.atomic():
             User.update(**body).where(User.id == user_id).execute()
             return Response(status_code=200)
