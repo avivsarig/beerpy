@@ -12,7 +12,7 @@ router = APIRouter(prefix="/users", responses={404: {"description": "Not found\n
 
 @router.get("/")
 async def get_users(request: Request) -> dict:
-    query = User.select(User.id, User.name, User.address, User.phone)
+    query = User.select(User.id, User.name, User.email, User.address, User.phone)
     filters = query_to_filters(request["query_string"])
     if filters != []:
         for filter in filters:
