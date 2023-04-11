@@ -55,9 +55,19 @@ class Test_create_user:
     def test_create_user_content(self, clean_db, name, email, password, address, phone):
         payload = create_payload(name, email, password, address, phone)
         response = client.post("/users/", json=payload)
+        query = (
+            User.select(User.name, User.email, User.address, User.phone)
+            .where(User.name == name)
+            .dicts()
+            .get()
+        )
 
-        query = User.select().where(User.name == "name").dicts()
-        assert query == payload
+        payload_with_none = payload
+        payload_with_none.pop("password")
+        for key in query.keys():
+            if key not in payload.keys():
+                payload_with_none[key] = None
+        assert payload_with_none == query
 
     def test_create_user_ok_code(self, clean_db):
         response = client.post(
