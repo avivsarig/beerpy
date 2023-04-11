@@ -45,8 +45,26 @@ def clean_db():
 
 
 class Test_create_beer:
-    def test_create_beer_content(self):
-        assert 1 == 1
+    @pytest.mark.parametrize(
+        "name, style, abv, price",
+        [("test_beer1", None, 1.0, 1.0), ("test_beer2", "test_style2", 2.0, 2.0)],
+    )
+    def test_create_beer_content(self, clean_db, name, style, abv, price):
+        payload = create_payload(name, style, abv, price)
+        response = client.post("/beers/", json=payload)
+        query = (
+            Beer.select(Beer.name, Beer.style, Beer.abv, Beer.price)
+            .where(Beer.name == name)
+            .dicts()
+            .get()
+        )
+
+        payload_with_none = payload
+        for key in query.keys():
+            if key not in payload.keys():
+                payload_with_none[key] = None
+
+        assert payload_with_none == query
 
     def test_create_ok_code(self):
         assert 1 == 1
