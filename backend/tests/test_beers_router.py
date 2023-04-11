@@ -84,8 +84,14 @@ class Test_create_beer:
         response = client.post("/beers/", json=create_payload(name, style, abv, price))
         assert response.status_code == 400
 
-    def test_create_fail_invalid_abv(self):
-        assert 1 == 1
+    def test_create_fail_invalid_abv(self, clean_db):
+        response = client.post("/beers/", json=create_payload(
+            "test_fail_abv",
+            "test_style",
+            -0.1,
+            14.66
+        ))
+        assert response.status_code == 400
 
     def test_create_fail_invalid_price(self):
         assert 1 == 1
