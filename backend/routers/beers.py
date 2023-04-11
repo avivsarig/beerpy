@@ -1,12 +1,11 @@
 from fastapi import APIRouter, HTTPException, Request, Response
 from peewee import IntegrityError
+
 from backend.database import db
 from backend.models import Beer
 
-# from urllib.error import HTTPError
-
 from backend.utils.query_to_filters import query_to_filters
-
+from backend.utils.error_handler import response_from_error
 
 router = APIRouter(prefix="/beers", responses={404: {"description": "Not found"}})
 
@@ -48,11 +47,12 @@ async def create_beer(request: Request):
     body = await request.json()
     try:
         with db.atomic():
-            res = Beer.create(**body)
-            return res
+            Beer.create(**body)
+            return Response(status_code=201)
+        
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.delete("/{beer_id}")
