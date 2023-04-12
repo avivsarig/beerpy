@@ -105,44 +105,51 @@ class Test_create_beer:
 
 
 class Test_delete_beer:
-    def test_delete(self):
-        assert 1 == 1
+    def test_delete(self,clean_db):
+        with db.atomic():
+            id = db.execute_sql(
+                "INSERT INTO beers (name, style, abv, price) VALUES ('test_delete', 'test_style', 5.0, 5.55) RETURNING id;"
+            ).fetchall()[0][0]
+        client.delete(f"/beers/{id}")
+        assert (
+            len(db.execute_sql(f"SELECT 1 FROM beers WHERE id = {id}").fetchall()) == 0
+        )
 
-    def test_delete_ok_code(self):
-        assert 1 == 1
+#     def test_delete_ok_code(self):
+#         assert 1 == 1
 
-    def test_delete_not_found(self):
-        assert 1 == 1
-
-
-class Test_get_beer:
-    def test_get_by_id(self):
-        assert 1 == 1
-
-    def test_get_ok_code(self):
-        assert 1 == 1
-
-    def test_get_not_found(self):
-        assert 1 == 1
+#     def test_delete_not_found(self):
+#         assert 1 == 1
 
 
-class Test_get_all_beers:
-    def test_get_all(self):
-        assert 1 == 1
+# class Test_get_beer:
+#     def test_get_by_id(self):
+#         assert 1 == 1
 
-    def test_get_all_ok_code(self):
-        assert 1 == 1
+#     def test_get_ok_code(self):
+#         assert 1 == 1
+
+#     def test_get_not_found(self):
+#         assert 1 == 1
 
 
-class Test_update_beer:
-    def test_update_content(self):
-        assert 1 == 1
+# class Test_get_all_beers:
+#     def test_get_all(self):
+#         assert 1 == 1
 
-    def test_update_ok_code(self):
-        assert 1 == 1
+#     def test_get_all_ok_code(self):
+#         assert 1 == 1
 
-    def test_update_not_found(self):
-        assert 1 == 1
 
-    def test_update_invalid(self):
-        assert 1 == 1
+# class Test_update_beer:
+#     def test_update_content(self):
+#         assert 1 == 1
+
+#     def test_update_ok_code(self):
+#         assert 1 == 1
+
+#     def test_update_not_found(self):
+#         assert 1 == 1
+
+#     def test_update_invalid(self):
+#         assert 1 == 1
