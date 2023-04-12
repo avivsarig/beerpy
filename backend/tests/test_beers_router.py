@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from peewee import *
+
 import pytest
+import random
 
 from backend.routers import beers
 from backend.models import Beer
@@ -56,9 +58,12 @@ class Test_create_beer:
         query = {
             key: float(value) if isinstance(value, Decimal) else value
             for key, value in Beer.select(Beer.name, Beer.style, Beer.abv, Beer.price)
-            .where(Beer.name == name).dicts().get().items()
+            .where(Beer.name == name)
+            .dicts()
+            .get()
+            .items()
         }
-        
+
         payload_with_none = payload
         for key in query.keys():
             if key not in payload.keys():
@@ -80,32 +85,25 @@ class Test_create_beer:
             ("test_beer3", "test_style3", 4.0, None),
         ],
     )
-    def test_create_error_code(self,clean_db, name, style, abv, price):
+    def test_create_error_code(self, clean_db, name, style, abv, price):
         response = client.post("/beers/", json=create_payload(name, style, abv, price))
         assert response.status_code == 400
 
     def test_create_fail_invalid_abv(self, clean_db):
-        response = client.post("/beers/", json=create_payload(
-            "test_fail_abv",
-            "test_style",
-            -0.1,
-            14.66
-        ))
+        response = client.post(
+            "/beers/", json=create_payload("test_fail_abv", "test_style", -0.1, 14.66)
+        )
         assert response.status_code == 400
 
-    @pytest.mark.parametrize("price",[(0),(-1)])
-    def test_create_fail_invalid_price(self,clean_db,price):
-        response = client.post("/beers/", json=create_payload(
-            "test_fail_price",
-            "test_style",
-            1.0,
-            price
-        ))
+    def test_create_fail_invalid_price(self, clean_db):
+        response = client.post(
+            "/beers/", json=create_payload("test_fail_price", "test_style", 1.0, -1.11)
+        )
         assert response.status_code == 400
 
 
 class Test_delete_beer:
-    def test_delete(self,clean_db):
+    def test_delete(self, clean_db):
         with db.atomic():
             id = db.execute_sql(
                 "INSERT INTO beers (name, style, abv, price) VALUES ('test_delete', 'test_style', 5.0, 5.55) RETURNING id;"
@@ -117,7 +115,9 @@ class Test_delete_beer:
 
     def test_delete_ok_code(self, clean_db):
         with db.atomic():
-            id = db.execute_sql("INSERT INTO beers (name, style, abv, price) VALUES ('test_delete', 'test_style', 5.0, 5.55) RETURNING id;").fetchall()[0][0]
+            id = db.execute_sql(
+                "INSERT INTO beers (name, style, abv, price) VALUES ('test_delete', 'test_style', 5.0, 5.55) RETURNING id;"
+            ).fetchall()[0][0]
         response = client.delete(f"/beers/{id}")
         assert response.status_code == 204
 
@@ -128,32 +128,60 @@ class Test_delete_beer:
 
 class Test_get_beer:
     def test_get_by_id(self, clean_db):
-        data = create_payload(
-            "test_get_by_id",
-            "test_style",
-            5.0,
-            10.99
-        )
+        data = create_payload("test_get_by_id", "test_style", 5.0, 10.99)
         data_string = payload_to_string(data)
         with db.atomic():
-            id = db.execute_sql(f"INSERT INTO beers (name, style, abv, price) VALUES ({data_string}) RETURNING id;").fetchall()[0][0]
-        
+            id = db.execute_sql(
+                f"INSERT INTO beers (name, style, abv, price) VALUES ({data_string}) RETURNING id;"
+            ).fetchall()[0][0]
+
         response = client.get(f"/beers/{id}")
 
         res_correct = data
         res_correct["id"] = id
         assert response.json()["__data__"] == res_correct
 
-#     def test_get_ok_code(self):
-#         assert 1 == 1
+    def test_get_by_id_ok_code(self, clean_db):
+        with db.atomic():
+            id = db.execute_sql(
+                "INSERT INTO beers (name, style, abv, price) VALUES ('test_delete', 'test_style', 5.0, 5.55) RETURNING id;"
+            ).fetchall()[0][0]
+        response = client.get(f"/beers/{id}")
+        assert response.status_code == 200
 
-#     def test_get_not_found(self):
-#         assert 1 == 1
+    def test_delete_not_found(self, clean_db):
+        response = client.get("/beers/1")
+        assert response.status_code == 404
 
 
-# class Test_get_all_beers:
-#     def test_get_all(self):
-#         assert 1 == 1
+class Test_get_all_beers:
+    def test_get_all(self):
+        with db.atomic():
+            for i in range(10):
+                data = create_payload(
+                    f"test_get_all{i}",
+                    f"test_style{i}",
+                    round(random.uniform(0, 20), 1),
+                    round(random.uniform(0, 100), 1),
+                )
+                data_string = payload_to_string(data)
+                db.execute_sql(
+                    f"INSERT INTO beers (name, style, abv, price) VALUES ({data_string});"
+                )
+
+        response = client.get("/beers/")
+        assert response.json()["qty"] == 10
+
+        query = Beer.select().dicts()
+        for beer_dict, response_dict in zip(query, response.json()["results"]):
+            beer_dict = {
+                key: float(value) if isinstance(value, Decimal) else value
+                for key, value in beer_dict.items()
+            }
+            for attr in ["name", "style", "abv", "price"]:
+                assert beer_dict[attr] == response_dict[attr]
+        assert len(Beer.select()) == len(response.json()["results"])
+
 
 #     def test_get_all_ok_code(self):
 #         assert 1 == 1

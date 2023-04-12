@@ -49,7 +49,7 @@ async def create_beer(request: Request):
         with db.atomic():
             Beer.create(**body)
             return Response(status_code=201)
-        
+
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)

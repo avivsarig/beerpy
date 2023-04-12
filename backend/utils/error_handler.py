@@ -10,17 +10,16 @@ def response_from_error(e: str) -> tuple[int, str]:
         field = str(e).split("(")[1].split(")")[0]
         message = f"The {field}: {value} already exists"
         return 400, message
-    
+
     elif "check constraint" in str(e).lower():
         print(str(e))
         if "beers_abv" in str(e).lower():
             message = "A beer ABV cannot be negative"
-        elif "beers_price"  in str(e).lower():
+        elif "beers_price" in str(e).lower():
             message = "A beer price cannot be negative"
         else:
             message = "Check constraint violation"
         return 400, message
-
 
     else:
         return 500, "Internal Error"
