@@ -93,13 +93,12 @@ class Test_create_beer:
         ))
         assert response.status_code == 400
 
-    @pytest.mark.parametrize("price",[(0),(-1)])
-    def test_create_fail_invalid_price(self,clean_db,price):
+    def test_create_fail_invalid_price(self,clean_db):
         response = client.post("/beers/", json=create_payload(
             "test_fail_price",
             "test_style",
             1.0,
-            price
+            -1.11
         ))
         assert response.status_code == 400
 

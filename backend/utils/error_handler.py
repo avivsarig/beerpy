@@ -14,7 +14,9 @@ def response_from_error(e: str) -> tuple[int, str]:
     elif "check constraint" in str(e).lower():
         print(str(e))
         if "beers_abv" in str(e).lower():
-            message = "ABV cannot be negative"
+            message = "A beer ABV cannot be negative"
+        elif "beers_price"  in str(e).lower():
+            message = "A beer price cannot be negative"
         else:
             message = "Check constraint violation"
         return 400, message
