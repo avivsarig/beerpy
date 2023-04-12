@@ -62,7 +62,8 @@ async def delete_beer(beer_id):
         raise HTTPException(status_code=404, detail="Beer not found")
     else:
         with db.atomic():
-            return Beer.delete().where(Beer.id == beer_id).execute()
+            Beer.delete().where(Beer.id == beer_id).execute()
+            return Response(status_code=204)
 
 
 @router.put("/{beer_id}")
