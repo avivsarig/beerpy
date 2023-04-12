@@ -121,13 +121,28 @@ class Test_delete_beer:
         response = client.delete(f"/beers/{id}")
         assert response.status_code == 204
 
-#     def test_delete_not_found(self):
-#         assert 1 == 1
+    def test_delete_not_found(self):
+        response = client.delete("/beers/1")
+        assert response.status_code == 404
 
 
-# class Test_get_beer:
-#     def test_get_by_id(self):
-#         assert 1 == 1
+class Test_get_beer:
+    def test_get_by_id(self, clean_db):
+        data = create_payload(
+            "test_get_by_id",
+            "test_style",
+            5.0,
+            10.99
+        )
+        data_string = payload_to_string(data)
+        with db.atomic():
+            id = db.execute_sql(f"INSERT INTO beers (name, style, abv, price) VALUES ({data_string}) RETURNING id;").fetchall()[0][0]
+        
+        response = client.get(f"/beers/{id}")
+
+        res_correct = data
+        res_correct["id"] = id
+        assert response.json()["__data__"] == res_correct
 
 #     def test_get_ok_code(self):
 #         assert 1 == 1
