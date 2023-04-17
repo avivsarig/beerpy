@@ -205,7 +205,7 @@ class Test_get_all:
                 db.execute_sql(
                     f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string});"
                 )
-                
+
         response = client.get("/users/")
         assert response.status_code == 200
 
@@ -311,7 +311,6 @@ class Test_filter_users:
         url = f"/users/?{field}={value}"
         response = client.get(url)
 
-        print(response.json())
         assert response.json()["qty"] == expected_qty
         if expected_qty == 1:
             assert response.json()["results"][0][field] == value

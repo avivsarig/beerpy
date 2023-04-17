@@ -236,18 +236,53 @@ class Test_update_beer:
 
         assert query == updated_payload
 
-#     def test_update_ok_code(self):
-#         assert 1 == 1
+    def test_update_ok_code(self, clean_db):
+        with db.atomic():
+            id = db.execute_sql(
+                "INSERT INTO beers (name, style, abv, price) VALUES ('test_update', 'test_style', 5.0, 13.99) RETURNING id"
+            ).fetchall()[0][0]
 
-#     def test_update_not_found(self):
-#         assert 1 == 1
+        updated_payload = create_payload(
+            name = "updated_test_user",
+            style= "updated_test_style",
+            abv=6.6,
+            price=22.22,
+        )
+        response = client.put(f"/beers/{id}", json = updated_payload)
+        
+        assert response.status_code == 200
 
-    # @pytest.mark.parametrize(
-    #     "name, style, abv, price",
-    #     [
-    #         ("test_beer1", "test_style1", -15.0, 55.55),
-    #         ("test_beer2", "test_style2", 5.0, -10.11),
-    #     ],
-    # )
-#     def test_update_invalid(self):
-#         assert 1 == 1
+
+    def test_update_not_found(self, clean_db):
+        non_existent_id = 1
+        updated_payload = create_payload(
+            name = "updated_test_user",
+            style= "updated_test_style",
+            abv=6.6,
+            price=22.22,
+        )
+        response = client.put(f"/beers/{non_existent_id}", json= updated_payload)
+        
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "abv, price",
+        [
+            (-15.0, None),
+            (None, -10.11),
+        ],
+    )
+    def test_update_invalid(self, clean_db, abv, price):
+        with db.atomic():
+            id = db.execute_sql(
+                "INSERT INTO beers (name, style, abv, price) VALUES ('test_update', 'test_style', 5.0, 13.99) RETURNING id"
+            ).fetchall()[0][0]
+        updated_payload = create_payload(
+            name = None,
+            style = None,
+            abv = abv,
+            price = price
+        )
+        response = client.put(f"/beers/{id}", json=updated_payload)
+
+        assert response.status_code == 400
