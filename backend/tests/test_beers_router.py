@@ -155,7 +155,7 @@ class Test_get_beer:
 
 
 class Test_get_all_beers:
-    def test_get_all(self):
+    def test_get_all(self, clean_db):
         with db.atomic():
             for i in range(10):
                 data = create_payload(
@@ -183,13 +183,58 @@ class Test_get_all_beers:
         assert len(Beer.select()) == len(response.json()["results"])
 
 
-#     def test_get_all_ok_code(self):
-#         assert 1 == 1
+    def test_get_all_ok_code(self, clean_db):
+        with db.atomic():
+            for i in range(10):
+                data = create_payload(
+                    f"test_get_all{i}",
+                    f"test_style{i}",
+                    round(random.uniform(0, 20), 1),
+                    round(random.uniform(0, 100), 1),
+                )
+                data_string = payload_to_string(data)
+                db.execute_sql(
+                    f"INSERT INTO beers (name, style, abv, price) VALUES ({data_string});"
+                )
+        
+        response = client.get("/beers/")
+        assert response.status_code == 200
 
 
-# class Test_update_beer:
-#     def test_update_content(self):
-#         assert 1 == 1
+class Test_update_beer:
+    @pytest.mark.parametrize(
+        "name, style, abv, price",
+        [
+            ("test_beer1", None, None, None),
+            (None, "test_style2", None, None),
+            (None, None, 4.0, None),
+            (None, None, None, 14.99),
+        ],
+    )
+    def test_update_content(self, clean_db, name, style, abv, price):
+        with db.atomic():
+            id = db.execute_sql(
+                "INSERT INTO beers (name, style, abv, price) VALUES ('test_update', 'test_style', 5.0, 13.99) RETURNING id"
+            ).fetchall()[0][0]
+
+        updated_payload = create_payload(name, style, abv, price)
+
+        old_beer = {
+            key: float(value) if isinstance(value, Decimal) else value
+            for key, value in Beer.select().where(Beer.id == id).dicts().get().items()
+            }
+        client.put(f"/beers/{id}", json = updated_payload)
+        query = {
+            key: float(value) if isinstance(value, Decimal) else value
+            for key, value in Beer.select().where(Beer.id == id).dicts().get().items()
+            }
+
+        expected_res = updated_payload
+        for key in old_beer.keys():
+                if key not in expected_res.keys():
+                    expected_res[key] = old_beer[key]
+
+        assert query == updated_payload
 
 #     def test_update_ok_code(self):
 #         assert 1 == 1
@@ -197,5 +242,12 @@ class Test_get_all_beers:
 #     def test_update_not_found(self):
 #         assert 1 == 1
 
+    # @pytest.mark.parametrize(
+    #     "name, style, abv, price",
+    #     [
+    #         ("test_beer1", "test_style1", -15.0, 55.55),
+    #         ("test_beer2", "test_style2", 5.0, -10.11),
+    #     ],
+    # )
 #     def test_update_invalid(self):
 #         assert 1 == 1

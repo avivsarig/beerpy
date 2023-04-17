@@ -192,6 +192,20 @@ class Test_get_all:
         assert len(query) == len(response.json()["results"])
 
     def test_get_all_ok_code(self, clean_db):
+        with db.atomic():
+            for i in range(10):
+                data = create_payload(
+                    f"test_get_all{i}",
+                    f"test_email{i}",
+                    f"test_pw{i}",
+                    f"test_address{i}",
+                    f"+972-555-555-555{i}",
+                )
+                data_string = payload_to_string(data)
+                db.execute_sql(
+                    f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string});"
+                )
+                
         response = client.get("/users/")
         assert response.status_code == 200
 
