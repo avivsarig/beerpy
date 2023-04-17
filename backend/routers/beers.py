@@ -78,5 +78,5 @@ async def update_beer(request: Request, beer_id):
                 Beer.update(**body).where(Beer.id == beer_id).execute()
 
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
