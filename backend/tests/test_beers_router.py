@@ -201,6 +201,71 @@ class Test_get_all_beers:
         assert response.status_code == 200
 
 
+class Test_filter_beers:
+    @pytest.mark.parametrize(
+        "field, op, value, expected_qty",
+        [
+            ("name", "", "test_get_all_filter1", 1),
+            ("style", "", "test_style2", 1),
+            ("abv", "[lt]", 3, 2),
+            ("abv", "[le]", 3, 3),
+            ("abv", "[eq]", 3, 1),
+            ("abv", "[ge]", 7, 3),
+            ("abv", "[gt]", 7, 2),
+            ("price", "[lt]", 5, 4),
+            ("price", "[le]", 5, 5),
+            ("price", "[eq]", 5, 1),
+            ("price", "[ge]", 5, 5),
+            ("price", "[gt]", 5, 4),
+            ("not_a_field", "", "non_existent_value", 9),
+        ],
+    )
+    def test_get_all_beers_filter(self, clean_db,field, op, value, expected_qty):
+        data_list = []
+        for i in range(1, 10):
+            data = create_payload(
+                name = f"test_get_all_filter{i}",
+                style = f"test_style{i}",
+                abv = i,
+                price = i,
+            )
+            data_list.append(payload_to_string(data))
+        data_string = f"({'),('.join(data_list)})"
+
+        with db.atomic():
+            db.execute_sql(
+                f"INSERT INTO beers (name, style, abv, price) VALUES {data_string}"
+            )
+        
+        url = f"/beers/?{field}{op}={value}"
+        response = client.get(url)
+        assert response.json()["qty"] == expected_qty
+        if expected_qty == 1:
+            assert response.json()["results"][0][field] == value
+
+    def test_get_all_multi_filter(self, clean_db):
+        data_list = []
+        for i in range(1, 10):
+            data = create_payload(
+                name = f"test_get_all_filter{i}",
+                style = f"test_style{i}",
+                abv = i,
+                price = i,
+            )
+            data_list.append(payload_to_string(data))
+        data_string = f"({'),('.join(data_list)})"
+
+        with db.atomic():
+            db.execute_sql(
+                f"INSERT INTO beers (name, style, abv, price) VALUES {data_string}"
+            )
+
+        url = f"/beers/?abv[lt]=5&price[ge]=3"
+        response = client.get(url)
+        print(response.json())
+        assert response.json()["qty"] == 2
+
+
 class Test_update_beer:
     @pytest.mark.parametrize(
         "name, style, abv, price",
