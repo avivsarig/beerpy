@@ -38,3 +38,4 @@ def clean_db():
         db.rollback()
         db.execute_sql("TRUNCATE TABLE orders RESTART IDENTITY CASCADE")
     yield
+

@@ -315,6 +315,29 @@ class Test_filter_users:
         if expected_qty == 1:
             assert response.json()["results"][0][field] == value
 
+
+    def test_get_all_multi_filter(self, clean_db):
+        data_list = []
+        for i in range(1, 10):
+            data = create_payload(
+                f"test_get_all_filter{i}",
+                f"test_email{i}",
+                f"test_pw{i}",
+                f"test_address{i}",
+                f"+972-555-555-555",
+            )
+            data_list.append(payload_to_string(data))
+        data_string = f"({'),('.join(data_list)})"
+
+        with db.atomic():
+            db.execute_sql(
+                f"INSERT INTO users (name, email, password, address, phone) VALUES {data_string};"
+            )
+
+        url = f"/users/?phone=+972-555-555-555&name=test_get_all_filter5"
+        response = client.get(url)
+        assert response.json()["qty"] == 1
+
     def test_get_all_users_with_filter_ok_code(self, clean_db):
         response = client.get("/users/", params={"name": "test_get_all_filter_ok_code"})
         assert response.status_code == 200
