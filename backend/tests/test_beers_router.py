@@ -262,7 +262,6 @@ class Test_filter_beers:
 
         url = f"/beers/?abv[lt]=5&price[ge]=3"
         response = client.get(url)
-        print(response.json())
         assert response.json()["qty"] == 2
 
 
