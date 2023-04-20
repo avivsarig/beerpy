@@ -26,11 +26,23 @@ client = TestClient(app)
 def create_payload(beer_id=None, user_id=None, qty=None, ordered_at=None, price_paid=None):
     return {key: value for key, value in locals().items() if value is not None}
 
-@pytest.fixture(scope="module", autouse=True)
-def setup_data():
+
+def setup_module():
     db.bind([Beer, User, Order])
     db.create_tables([Beer, User, Order])
 
+
+def teardown_module():
+    with db.atomic():
+        db.rollback()
+        db.execute_sql("TRUNCATE TABLE beers RESTART IDENTITY CASCADE;")
+        db.execute_sql("TRUNCATE TABLE users RESTART IDENTITY CASCADE;")
+    db.drop_tables([Order, User, Beer])
+    db.close()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def setup_data():
     beers = []
     users = []
 
@@ -43,18 +55,19 @@ def setup_data():
 
     yield {"beers": beers, "users": users}
 
-    db.drop_tables([User, Beer, Order])
-    db.close()
-
 
 @pytest.fixture(scope="function", autouse=True)
 def clean_db():
     with db.atomic():
         db.rollback()
-        db.execute_sql("TRUNCATE TABLE orders RESTART IDENTITY CASCADE")
+        db.execute_sql("TRUNCATE TABLE orders RESTART IDENTITY CASCADE;")
     yield
 
 class Test_create_order:
     def test_create_order_content(self):
-        payload = create_payload(1,1,10, datetime.now(), 10)
+        payload = create_payload(1,1, 10, datetime.now().isoformat(), 10)
+        response = client.post("/orders/", json=payload)
+        query = Order.select(Order.beer_id, Order.user_id, Order.qty, Order.ordered_at, Order.price_paid).dicts().get()
+
+        print(query)
         assert 1 == 0
