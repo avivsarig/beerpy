@@ -71,3 +71,58 @@ class Test_create_order:
 
         print(query)
         assert 1 == 0
+
+#     def test_create_order_ok_code(self):
+#         assert 1==0
+
+#     def test_create_order_error_code(self):
+#         assert 1==0
+
+# class Test_delete_order:
+#     def test_delete_order(self):
+#         assert 1==0
+    
+#     def test_delete_ok_code(self):
+#         assert 1==0
+
+#     def test_delete_not_found(self):
+#         assert 1==0
+
+# class Test_get_order:
+#     def test_get_by_id(self):
+#         assert 1==0
+
+#     def test_get_by_id_ok_code(self):
+#         assert 1==0
+
+#     def test_get_by_id_not_found(self):
+#         assert 1==0
+    
+# class Test_get_all:
+#     def test_get_all(self):
+#         assert 1==0
+
+#     def test_get_all_ok_code(self):
+#         assert 1==0
+
+# class Test_filter_orders:
+#     def test_get_all_orders_with_filter(self):
+#         assert 1==0
+
+#     def test_get_all_multi_filter(self):
+#         assert 1==0
+
+#     def test_get_all_orders_with_filter_ok_code(self):
+#         assert 1==0
+
+# class Test_update_order:
+#     def test_update_order_content(self):
+#         assert 1==0
+
+#     def test_update_user_ok_code(self):
+#         assert 1==0
+
+#     def test_update_user_not_found(self):
+#         assert 1==0
+
+    
