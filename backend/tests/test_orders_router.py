@@ -78,6 +78,15 @@ class Test_create_order:
 #     def test_create_order_error_code(self):
 #         assert 1==0
 
+#     def test_create_order_with_invalid_foreign_keys(self):
+#         assert 1==0
+
+#     def test_create_order_timezone_handling(self):
+#         assert 1==0
+
+#     def test_create_order_edge_case_dates(self):
+#         assert 1==0
+
 # class Test_delete_order:
 #     def test_delete_order(self):
 #         assert 1==0
@@ -119,10 +128,13 @@ class Test_create_order:
 #     def test_update_order_content(self):
 #         assert 1==0
 
-#     def test_update_user_ok_code(self):
+#     def test_update_order_ok_code(self):
 #         assert 1==0
 
-#     def test_update_user_not_found(self):
+#     def test_update_order_not_found(self):
+#         assert 1==0
+
+#     def test_order_invalid(self):
 #         assert 1==0
 
     
