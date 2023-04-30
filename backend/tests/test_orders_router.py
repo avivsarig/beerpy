@@ -65,21 +65,39 @@ def clean_db():
 
 class Test_create_order:
     def test_create_order_content(self):
-        payload = create_payload(1,1, 10, datetime.now().isoformat(), 10)
+        time = datetime.now().isoformat()
+        payload = create_payload(1,1, 10, time, 10)
         response = client.post("/orders/", json=payload)
         query = Order.select(Order.beer_id, Order.user_id, Order.qty, Order.ordered_at, Order.price_paid).dicts().get()
+        query["price_paid"] = float(query["price_paid"])
+        query["ordered_at"] = query["ordered_at"].strftime("%Y-%m-%dT%H:%M:%S.%f")
 
-        print(query)
-        assert 1 == 0
+        assert query == payload
 
-#     def test_create_order_ok_code(self):
-#         assert 1==0
+    def test_create_order_ok_code(self):
+        response = client.post("/orders/", json=create_payload(1,1, 10, datetime.now().isoformat(), 10))
+               
+        assert response.status_code == 201
 
-#     def test_create_order_error_code(self):
-#         assert 1==0
+    @pytest.mark.parametrize(
+        "beer_id, user_id, qty, ordered_at, price_paid",
+        [
+            # Missing required fields
+            (None, 1, 10, "2023-04-30T17:12:24.485793", 10),
+            (1, None, 10, "2023-04-30T17:12:24.485793", 10),
+            (1, 1, None, "2023-04-30T17:12:24.485793", 10),
 
-#     def test_create_order_with_invalid_foreign_keys(self):
-#         assert 1==0
+            # Non-existent foreign keys
+            (999, 1, 10, "2023-04-30T17:12:24.485793", 10),
+            (1, 999, 10, "2023-04-30T17:12:24.485793", 10),
+        ],
+    )
+    def test_create_order_error_code(self, beer_id, user_id, qty, ordered_at, price_paid):
+        payload = create_payload(beer_id, user_id, qty, ordered_at, price_paid)
+        response = client.post("/orders/", json=payload)
+        
+        print(response.status_code, response.json())
+        assert response.status_code == 400
 
 #     def test_create_order_timezone_handling(self):
 #         assert 1==0

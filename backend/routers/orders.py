@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Request, Response
-from peewee import IntegrityError
+from peewee import IntegrityError, DataError
 from backend.database import db
 from backend.models import Order, Beer, User
 
 from backend.utils.query_to_filters import query_to_filters
-
+from backend.utils.error_handler import response_from_error
 
 router = APIRouter(prefix="/orders", responses={404: {"description": "Not found"}})
 
@@ -59,13 +59,14 @@ async def get_order_by_id(order_id):
 @router.post("/")
 async def create_order(request: Request):
     body = await request.json()
-    with db.atomic():
-        try:
+    try:
+        with db.atomic():
             res = Order.create(**body)
-            return res
-        except IntegrityError as e:
-            print(e, flush=True)
-            return Response()
+            return Response(status_code=201)
+        
+    except (IntegrityError, DataError) as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.delete("/{order_id}")
