@@ -24,7 +24,10 @@ db = PostgresqlDatabase(
 
 client = TestClient(app)
 
-def create_payload(beer_id=None, user_id=None, qty=None, ordered_at=None, price_paid=None):
+
+def create_payload(
+    beer_id=None, user_id=None, qty=None, ordered_at=None, price_paid=None
+):
     return {key: value for key, value in locals().items() if value is not None}
 
 
@@ -48,10 +51,18 @@ def setup_data():
     users = []
 
     for i in range(1, 6):
-        beer = Beer.create(name=f"Test Beer {i}", style=f"Test Style {i}", abv=i, price=i)
+        beer = Beer.create(
+            name=f"Test Beer {i}", style=f"Test Style {i}", abv=i, price=i
+        )
         beers.append(beer)
 
-        user = User.create(name=f"Test User {i}", email=f"test{i}@email.com", password=f"password{i}", address=f"{i} Main St", phone=f"123456789{i}")
+        user = User.create(
+            name=f"Test User {i}",
+            email=f"test{i}@email.com",
+            password=f"password{i}",
+            address=f"{i} Main St",
+            phone=f"123456789{i}",
+        )
         users.append(user)
 
     yield {"beers": beers, "users": users}
@@ -64,6 +75,7 @@ def clean_db():
         db.execute_sql("TRUNCATE TABLE orders RESTART IDENTITY CASCADE;")
     yield
 
+
 def string_to_datetime(date_str: str, strip_tz: bool = False):
     if strip_tz:
         dt = datetime.fromisoformat(date_str).replace(tzinfo=None)
@@ -71,21 +83,33 @@ def string_to_datetime(date_str: str, strip_tz: bool = False):
         dt = datetime.fromisoformat(date_str)
     return dt
 
+
 class Test_create_order:
     def test_create_order_content(self):
         time = datetime.now().isoformat()
-        payload = create_payload(1,1, 10, time, 10)
+        payload = create_payload(1, 1, 10, time, 10)
         response = client.post("/orders/", json=payload)
-        query = Order.select(Order.beer_id, Order.user_id, Order.qty, Order.ordered_at, Order.price_paid).dicts().get()
+        query = (
+            Order.select(
+                Order.beer_id,
+                Order.user_id,
+                Order.qty,
+                Order.ordered_at,
+                Order.price_paid,
+            )
+            .dicts()
+            .get()
+        )
         query["price_paid"] = float(query["price_paid"])
         query["ordered_at"] = query["ordered_at"].isoformat()
 
         assert query == payload
 
-
     def test_create_order_ok_code(self):
-        response = client.post("/orders/", json=create_payload(1,1, 10, datetime.now().isoformat(), 10))
-               
+        response = client.post(
+            "/orders/", json=create_payload(1, 1, 10, datetime.now().isoformat(), 10)
+        )
+
         assert response.status_code == 201
 
     @pytest.mark.parametrize(
@@ -95,35 +119,36 @@ class Test_create_order:
             (None, 1, 10, "2023-04-30T17:12:24.485793", 10),
             (1, None, 10, "2023-04-30T17:12:24.485793", 10),
             (1, 1, None, "2023-04-30T17:12:24.485793", 10),
-
             # Non-existent foreign keys
             (999, 1, 10, "2023-04-30T17:12:24.485793", 10),
             (1, 999, 10, "2023-04-30T17:12:24.485793", 10),
         ],
     )
-    def test_create_order_error_code(self, beer_id, user_id, qty, ordered_at, price_paid):
+    def test_create_order_error_code(
+        self, beer_id, user_id, qty, ordered_at, price_paid
+    ):
         payload = create_payload(beer_id, user_id, qty, ordered_at, price_paid)
         response = client.post("/orders/", json=payload)
-        
+
         print(response.status_code, response.json())
         assert response.status_code == 400
 
     def test_create_order_timezone_handling(self):
         time_utc = datetime.now(pytz.utc).isoformat()
         time_pdt = datetime.now(pytz.timezone("America/Los_Angeles")).isoformat()
-        
+
         payload_utc = create_payload(1, 1, 10, time_utc, 10)
         payload_pdt = create_payload(2, 2, 10, time_pdt, 10)
-        
+
         response_utc = client.post("/orders/", json=payload_utc)
         response_pdt = client.post("/orders/", json=payload_pdt)
-        
+
         query_utc = Order.select().where(Order.user_id == 1).get()
         query_pdt = Order.select().where(Order.user_id == 2).get()
-        
+
         utc_time = string_to_datetime(time_utc, strip_tz=True)
         pdt_time = string_to_datetime(time_pdt, strip_tz=True)
-        
+
         assert query_utc.ordered_at == utc_time
         assert query_pdt.ordered_at == pdt_time
 
@@ -139,17 +164,23 @@ class Test_create_order:
     def test_create_order_edge_case_dates(self, ordered_at):
         payload = create_payload(1, 1, 10, ordered_at, 10)
         response = client.post("/orders/", json=payload)
-        
+
         query = Order.select().where(Order.user_id == 1).get()
         ordered_at_datetime = string_to_datetime(ordered_at)
 
-
         assert query.ordered_at == ordered_at_datetime
 
-# class Test_delete_order:
-#     def test_delete_order(self):
-#         assert 1==0
-    
+
+class Test_delete_order:
+    def test_delete_order(self):
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO orders (beer_id, user_id, qty, ordered_at, price_paid) VALUES (1, 1, 10, '{datetime.now().isoformat()}', 10) RETURNING id;"
+            ).fetchall()[0][0]
+        client.delete(f"/orders/{id}")
+        assert len(db.execute_sql("SELECT * FROM orders;").fetchall()) == 0
+
+
 #     def test_delete_ok_code(self):
 #         assert 1==0
 
@@ -165,7 +196,7 @@ class Test_create_order:
 
 #     def test_get_by_id_not_found(self):
 #         assert 1==0
-    
+
 # class Test_get_all:
 #     def test_get_all(self):
 #         assert 1==0
@@ -195,5 +226,3 @@ class Test_create_order:
 
 #     def test_order_invalid(self):
 #         assert 1==0
-
-    
