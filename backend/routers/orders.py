@@ -35,25 +35,19 @@ async def get_orders(request: Request):
 
 
 @router.get("/{order_id}")
-async def get_order_by_id(order_id):
-    query = (
-        Order.select(
-            Order.id,
-            Beer.name,
-            User.name,
-            Order.qty,
-            Order.ordered_at,
-            Order.price_paid,
-        )
-        .join(Beer, on=(Order.beer_id == Beer.id))
-        .join(User, on=(Order.user_id == User.id))
-        .where(Order.id == order_id)
-    )
+async def get_order_by_id(order_id: int):
+    try:
+        query = Order.select().where(Order.id == order_id)
+        
+        if not query:
+            raise HTTPException(status_code=404, detail="Order not found")
+        else:
+            return query.get()
+        
+    except (IntegrityError, DataError) as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)    
 
-    if not query.exists():
-        raise HTTPException(status_code=404, detail="Beer not found")
-    else:
-        return query.get()
 
 
 @router.post("/")
@@ -77,7 +71,12 @@ async def delete_order(order_id):
             raise HTTPException(status_code=404, detail="Order not found")
         else:
             with db.atomic():
-                return Order.delete().where(Order.id == order_id).execute()
+                Order.delete().where(Order.id == order_id).execute()
+                return Response(status_code=204)
+    
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
     except IntegrityError as e:
         print(e, flush=True)

@@ -181,21 +181,44 @@ class Test_delete_order:
         assert len(db.execute_sql("SELECT * FROM orders;").fetchall()) == 0
 
 
-#     def test_delete_ok_code(self):
-#         assert 1==0
+    def test_delete_ok_code(self):
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO orders (beer_id, user_id, qty, ordered_at, price_paid) VALUES (1, 1, 10, '{datetime.now().isoformat()}', 10) RETURNING id;"
+            ).fetchall()[0][0]
+        response = client.delete(f"/orders/{id}")
+        assert response.status_code == 204
 
-#     def test_delete_not_found(self):
-#         assert 1==0
+    def test_delete_not_found(self):
+        response = client.delete(f"/orders/1")
+        assert response.status_code == 404
 
-# class Test_get_order:
-#     def test_get_by_id(self):
-#         assert 1==0
+class Test_get_order:
+    def test_get_by_id(self):
+        time = datetime.now().isoformat()
+        data = create_payload(1, 1, 10, time, 10)
+        data_string = payload_to_string(data)
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO orders (user_id, beer_id, qty, ordered_at, price_paid) VALUES ({data_string}) RETURNING id;"
+            ).fetchall()[0][0]
+        data["id"] = id
 
-#     def test_get_by_id_ok_code(self):
-#         assert 1==0
+        response = client.get(f"/orders/{id}")
 
-#     def test_get_by_id_not_found(self):
-#         assert 1==0
+        assert response.json()['__data__'] == data
+
+    def test_get_by_id_ok_code(self):
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO orders (user_id, beer_id, qty, ordered_at, price_paid) VALUES (1, 1, 10, '{datetime.now().isoformat()}', 10) RETURNING id;"
+            ).fetchall()[0][0]
+        response = client.get(f"/orders/{id}")
+        assert response.status_code == 200
+
+    def test_get_by_id_not_found(self):
+        response = client.get(f"/orders/1")
+        assert response.status_code == 404
 
 # class Test_get_all:
 #     def test_get_all(self):
