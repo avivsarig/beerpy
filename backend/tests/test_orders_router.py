@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from peewee import *
 
 import pytest
+import pytz
 from datetime import datetime
 
 from backend.routers import orders
@@ -63,6 +64,13 @@ def clean_db():
         db.execute_sql("TRUNCATE TABLE orders RESTART IDENTITY CASCADE;")
     yield
 
+def string_to_datetime(date_str: str, strip_tz: bool = False):
+    if strip_tz:
+        dt = datetime.fromisoformat(date_str).replace(tzinfo=None)
+    else:
+        dt = datetime.fromisoformat(date_str)
+    return dt
+
 class Test_create_order:
     def test_create_order_content(self):
         time = datetime.now().isoformat()
@@ -70,9 +78,10 @@ class Test_create_order:
         response = client.post("/orders/", json=payload)
         query = Order.select(Order.beer_id, Order.user_id, Order.qty, Order.ordered_at, Order.price_paid).dicts().get()
         query["price_paid"] = float(query["price_paid"])
-        query["ordered_at"] = query["ordered_at"].strftime("%Y-%m-%dT%H:%M:%S.%f")
+        query["ordered_at"] = query["ordered_at"].isoformat()
 
         assert query == payload
+
 
     def test_create_order_ok_code(self):
         response = client.post("/orders/", json=create_payload(1,1, 10, datetime.now().isoformat(), 10))
@@ -99,11 +108,43 @@ class Test_create_order:
         print(response.status_code, response.json())
         assert response.status_code == 400
 
-#     def test_create_order_timezone_handling(self):
-#         assert 1==0
+    def test_create_order_timezone_handling(self):
+        time_utc = datetime.now(pytz.utc).isoformat()
+        time_pdt = datetime.now(pytz.timezone("America/Los_Angeles")).isoformat()
+        
+        payload_utc = create_payload(1, 1, 10, time_utc, 10)
+        payload_pdt = create_payload(2, 2, 10, time_pdt, 10)
+        
+        response_utc = client.post("/orders/", json=payload_utc)
+        response_pdt = client.post("/orders/", json=payload_pdt)
+        
+        query_utc = Order.select().where(Order.user_id == 1).get()
+        query_pdt = Order.select().where(Order.user_id == 2).get()
+        
+        utc_time = string_to_datetime(time_utc, strip_tz=True)
+        pdt_time = string_to_datetime(time_pdt, strip_tz=True)
+        
+        assert query_utc.ordered_at == utc_time
+        assert query_pdt.ordered_at == pdt_time
 
-#     def test_create_order_edge_case_dates(self):
-#         assert 1==0
+    @pytest.mark.parametrize(
+        "ordered_at",
+        [
+            "2020-02-29T00:00:00",  # Leap year date
+            "2021-02-28T23:59:59",  # Non-leap year date
+            "2023-03-12T02:00:00",  # Start of Daylight Saving Time in the US
+            "2023-11-05T02:00:00",  # End of Daylight Saving Time in the US
+        ],
+    )
+    def test_create_order_edge_case_dates(self, ordered_at):
+        payload = create_payload(1, 1, 10, ordered_at, 10)
+        response = client.post("/orders/", json=payload)
+        
+        query = Order.select().where(Order.user_id == 1).get()
+        ordered_at_datetime = string_to_datetime(ordered_at)
+
+
+        assert query.ordered_at == ordered_at_datetime
 
 # class Test_delete_order:
 #     def test_delete_order(self):
