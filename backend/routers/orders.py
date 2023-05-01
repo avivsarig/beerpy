@@ -63,7 +63,7 @@ async def create_order(request: Request):
         with db.atomic():
             res = Order.create(**body)
             return Response(status_code=201)
-        
+
     except (IntegrityError, DataError) as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)

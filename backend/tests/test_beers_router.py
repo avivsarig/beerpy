@@ -182,7 +182,6 @@ class Test_get_all_beers:
                 assert beer_dict[attr] == response_dict[attr]
         assert len(Beer.select()) == len(response.json()["results"])
 
-
     def test_get_all_ok_code(self, clean_db):
         with db.atomic():
             for i in range(10):
@@ -196,7 +195,7 @@ class Test_get_all_beers:
                 db.execute_sql(
                     f"INSERT INTO beers (name, style, abv, price) VALUES ({data_string});"
                 )
-        
+
         response = client.get("/beers/")
         assert response.status_code == 200
 
@@ -220,14 +219,14 @@ class Test_filter_beers:
             ("not_a_field", "", "non_existent_value", 9),
         ],
     )
-    def test_get_all_beers_filter(self, clean_db,field, op, value, expected_qty):
+    def test_get_all_beers_filter(self, clean_db, field, op, value, expected_qty):
         data_list = []
         for i in range(1, 10):
             data = create_payload(
-                name = f"test_get_all_filter{i}",
-                style = f"test_style{i}",
-                abv = i,
-                price = i,
+                name=f"test_get_all_filter{i}",
+                style=f"test_style{i}",
+                abv=i,
+                price=i,
             )
             data_list.append(payload_to_string(data))
         data_string = f"({'),('.join(data_list)})"
@@ -236,7 +235,7 @@ class Test_filter_beers:
             db.execute_sql(
                 f"INSERT INTO beers (name, style, abv, price) VALUES {data_string}"
             )
-        
+
         url = f"/beers/?{field}{op}={value}"
         response = client.get(url)
         assert response.json()["qty"] == expected_qty
@@ -247,10 +246,10 @@ class Test_filter_beers:
         data_list = []
         for i in range(1, 10):
             data = create_payload(
-                name = f"test_get_all_filter{i}",
-                style = f"test_style{i}",
-                abv = i,
-                price = i,
+                name=f"test_get_all_filter{i}",
+                style=f"test_style{i}",
+                abv=i,
+                price=i,
             )
             data_list.append(payload_to_string(data))
         data_string = f"({'),('.join(data_list)})"
@@ -286,17 +285,17 @@ class Test_update_beer:
         old_beer = {
             key: float(value) if isinstance(value, Decimal) else value
             for key, value in Beer.select().where(Beer.id == id).dicts().get().items()
-            }
-        client.put(f"/beers/{id}", json = updated_payload)
+        }
+        client.put(f"/beers/{id}", json=updated_payload)
         query = {
             key: float(value) if isinstance(value, Decimal) else value
             for key, value in Beer.select().where(Beer.id == id).dicts().get().items()
-            }
+        }
 
         expected_res = updated_payload
         for key in old_beer.keys():
-                if key not in expected_res.keys():
-                    expected_res[key] = old_beer[key]
+            if key not in expected_res.keys():
+                expected_res[key] = old_beer[key]
 
         assert query == updated_payload
 
@@ -307,26 +306,25 @@ class Test_update_beer:
             ).fetchall()[0][0]
 
         updated_payload = create_payload(
-            name = "updated_test_user",
-            style= "updated_test_style",
+            name="updated_test_user",
+            style="updated_test_style",
             abv=6.6,
             price=22.22,
         )
-        response = client.put(f"/beers/{id}", json = updated_payload)
-        
-        assert response.status_code == 200
+        response = client.put(f"/beers/{id}", json=updated_payload)
 
+        assert response.status_code == 200
 
     def test_update_not_found(self, clean_db):
         non_existent_id = 1
         updated_payload = create_payload(
-            name = "updated_test_user",
-            style= "updated_test_style",
+            name="updated_test_user",
+            style="updated_test_style",
             abv=6.6,
             price=22.22,
         )
-        response = client.put(f"/beers/{non_existent_id}", json= updated_payload)
-        
+        response = client.put(f"/beers/{non_existent_id}", json=updated_payload)
+
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
@@ -341,12 +339,7 @@ class Test_update_beer:
             id = db.execute_sql(
                 "INSERT INTO beers (name, style, abv, price) VALUES ('test_update', 'test_style', 5.0, 13.99) RETURNING id"
             ).fetchall()[0][0]
-        updated_payload = create_payload(
-            name = None,
-            style = None,
-            abv = abv,
-            price = price
-        )
+        updated_payload = create_payload(name=None, style=None, abv=abv, price=price)
         response = client.put(f"/beers/{id}", json=updated_payload)
 
         assert response.status_code == 400

@@ -315,7 +315,6 @@ class Test_filter_users:
         if expected_qty == 1:
             assert response.json()["results"][0][field] == value
 
-
     def test_get_all_multi_filter(self, clean_db):
         data_list = []
         for i in range(1, 10):
