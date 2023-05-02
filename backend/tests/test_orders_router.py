@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from peewee import *
 
 import pytest
+import random
 import pytz
 from datetime import datetime
 
@@ -10,6 +11,7 @@ from backend.routers import orders
 from backend.models import Order, Beer, User
 
 from backend.tests.utils.payload_to_string import payload_to_string
+from decimal import Decimal
 
 app = FastAPI()
 app.include_router(orders.router)
@@ -29,6 +31,14 @@ def create_payload(
     beer_id=None, user_id=None, qty=None, ordered_at=None, price_paid=None
 ):
     return {key: value for key, value in locals().items() if value is not None}
+
+
+def string_to_datetime(date_str: str, strip_tz: bool = False):
+    if strip_tz:
+        dt = datetime.fromisoformat(date_str).replace(tzinfo=None)
+    else:
+        dt = datetime.fromisoformat(date_str)
+    return dt
 
 
 def setup_module():
@@ -74,14 +84,6 @@ def clean_db():
         db.rollback()
         db.execute_sql("TRUNCATE TABLE orders RESTART IDENTITY CASCADE;")
     yield
-
-
-def string_to_datetime(date_str: str, strip_tz: bool = False):
-    if strip_tz:
-        dt = datetime.fromisoformat(date_str).replace(tzinfo=None)
-    else:
-        dt = datetime.fromisoformat(date_str)
-    return dt
 
 
 class Test_create_order:
@@ -170,6 +172,20 @@ class Test_create_order:
 
         assert query.ordered_at == ordered_at_datetime
 
+    def test_create_order_same_user(self):
+        time = datetime.now().isoformat()
+        for i in range(1, 3):
+            payload = create_payload(1, i, 10, time, 10)
+            response = client.post("/orders/", json=payload)
+        assert response.status_code == 201
+
+    def test_create_order_same_beer(self):
+        time = datetime.now().isoformat()
+        for i in range(1, 3):
+            payload = create_payload(i, 1, 10, time, 10)
+            response = client.post("/orders/", json=payload)
+        assert response.status_code == 201
+
 
 class Test_delete_order:
     def test_delete_order(self):
@@ -179,7 +195,6 @@ class Test_delete_order:
             ).fetchall()[0][0]
         client.delete(f"/orders/{id}")
         assert len(db.execute_sql("SELECT * FROM orders;").fetchall()) == 0
-
 
     def test_delete_ok_code(self):
         with db.atomic():
@@ -192,6 +207,7 @@ class Test_delete_order:
     def test_delete_not_found(self):
         response = client.delete(f"/orders/1")
         assert response.status_code == 404
+
 
 class Test_get_order:
     def test_get_by_id(self):
@@ -206,7 +222,7 @@ class Test_get_order:
 
         response = client.get(f"/orders/{id}")
 
-        assert response.json()['__data__'] == data
+        assert response.json()["__data__"] == data
 
     def test_get_by_id_ok_code(self):
         with db.atomic():
@@ -220,9 +236,36 @@ class Test_get_order:
         response = client.get(f"/orders/1")
         assert response.status_code == 404
 
-# class Test_get_all:
-#     def test_get_all(self):
-#         assert 1==0
+
+class Test_get_all:
+    def test_get_all(self):
+        with db.atomic():
+            for i in range(1, 6):
+                time = datetime.now().isoformat()
+                data = create_payload(
+                    i, i, int(random.uniform(0, 50)), time, random.uniform(0, 200)
+                )
+
+                data_string = payload_to_string(data)
+                db.execute_sql(
+                    f"INSERT INTO orders (user_id, beer_id, qty, ordered_at, price_paid) VALUES ({data_string}) RETURNING id;"
+                )
+
+        response = client.get("/orders/")
+        assert response.json()["qty"] == 5
+
+        query = Order.select().dicts()
+        for order_dict, response_dict in zip(query, response.json()["results"]):
+            order_dict = {
+                key: float(value) if isinstance(value, Decimal) else value
+                for key, value in order_dict.items()
+            }
+            for attr in ["user_id", "beer_id", "qty", "ordered_at", "price_paid"]:
+                if attr == "ordered_at":
+                    order_dict[attr] = order_dict[attr].isoformat()
+                assert order_dict[attr] == response_dict[attr]
+        assert len(Order.select()) == len(response.json()["results"])
+
 
 #     def test_get_all_ok_code(self):
 #         assert 1==0
