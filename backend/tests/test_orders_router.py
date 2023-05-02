@@ -5,12 +5,13 @@ from peewee import *
 import pytest
 import random
 import pytz
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from backend.routers import orders
 from backend.models import Order, Beer, User
 
 from backend.tests.utils.payload_to_string import payload_to_string
+from backend.tests.utils.apply_filter import apply_filter
 from decimal import Decimal
 
 app = FastAPI()
@@ -175,14 +176,14 @@ class Test_create_order:
     def test_create_order_same_user(self):
         time = datetime.now().isoformat()
         for i in range(1, 3):
-            payload = create_payload(1, i, 10, time, 10)
+            payload = create_payload(i, 1, 10, time, 10)
             response = client.post("/orders/", json=payload)
         assert response.status_code == 201
 
     def test_create_order_same_beer(self):
         time = datetime.now().isoformat()
         for i in range(1, 3):
-            payload = create_payload(i, 1, 10, time, 10)
+            payload = create_payload(1, i, 10, time, 10)
             response = client.post("/orders/", json=payload)
         assert response.status_code == 201
 
@@ -243,7 +244,7 @@ class Test_get_all:
             for i in range(1, 6):
                 time = datetime.now().isoformat()
                 data = create_payload(
-                    i, i, int(random.uniform(0, 50)), time, random.uniform(0, 200)
+                    i, i, random.randint(0, 50), time, random.uniform(0, 200)
                 )
 
                 data_string = payload_to_string(data)
@@ -266,19 +267,123 @@ class Test_get_all:
                 assert order_dict[attr] == response_dict[attr]
         assert len(Order.select()) == len(response.json()["results"])
 
+    def test_get_all_ok_code(self):
+        with db.atomic():
+            for i in range(1, 6):
+                time = datetime.now().isoformat()
+                data = create_payload(
+                    i, i, random.randint(0, 50), time, random.uniform(0, 200)
+                )
 
-#     def test_get_all_ok_code(self):
-#         assert 1==0
+                data_string = payload_to_string(data)
+                db.execute_sql(
+                    f"INSERT INTO orders (user_id, beer_id, qty, ordered_at, price_paid) VALUES ({data_string}) RETURNING id;"
+                )
 
-# class Test_filter_orders:
-#     def test_get_all_orders_with_filter(self):
-#         assert 1==0
+        response = client.get("/orders/")
+        assert response.status_code == 200
 
-#     def test_get_all_multi_filter(self):
-#         assert 1==0
 
-#     def test_get_all_orders_with_filter_ok_code(self):
-#         assert 1==0
+class Test_filter_orders:
+    @pytest.mark.parametrize(
+        "field, op, value",
+        [
+            ("qty", "", 5),
+            ("qty", "[lt]", 6),
+            ("qty", "[le]", 7),
+            ("qty", "[eq]", 8),
+            ("qty", "[ge]", 3),
+            ("qty", "[gt]", 2),
+
+            ("ordered_at", "[lt]", "2023-01-01"),
+            ("ordered_at", "[le]", "2023-02-01"),
+            ("ordered_at", "[eq]", "2023-03-01"),
+            ("ordered_at", "[ge]", "2023-04-01"),
+            ("ordered_at", "[gt]", "2023-05-01"),
+
+            ("price_paid", "", 50.00),
+            ("price_paid", "[lt]", 100.00),
+            ("price_paid", "[le]", 150.00),
+            ("price_paid", "[eq]", 200.00),
+            ("price_paid", "[ge]", 50.00),
+            ("price_paid", "[gt]", 25.00),
+
+            ("not_a_field", "", "non_existent_value"),
+        ],
+    )
+    def test_get_all_orders_with_filter(self, field, op, value):
+        data_list = []
+        for _ in range(10):
+            beer_id = random.randint(1, 5)
+            user_id = random.randint(1, 5)
+            qty = random.randint(1, 10)
+            days_ago = random.randint(1, 1000)
+            ordered_at = datetime.now() - timedelta(days=days_ago)
+            price_paid = round(random.uniform(1, 200), 2)
+
+            data = create_payload(beer_id, user_id, qty, ordered_at, price_paid)
+            data_list.append(data)
+
+        keys_order = ['beer_id', 'user_id', 'qty', 'ordered_at', 'price_paid']
+        data_string = f"{'),('.join([payload_to_string(data, keys_order) for data in data_list])}"
+
+        with db.atomic():
+            db.execute_sql(
+                    f"INSERT INTO orders (beer_id, user_id, qty, ordered_at, price_paid) VALUES ({data_string});"
+                )
+        
+        if field == "ordered_at":
+            value = datetime.strptime(value, "%Y-%m-%d")
+        filtered_data = apply_filter(data_list, field, op, value)
+
+        url = f"/orders/?{field}{op}={value}"
+        response = client.get(url)
+        response_data = response.json()["results"]
+
+        for item in response_data:
+            del item['id']
+            item['ordered_at'] = datetime.fromisoformat(item['ordered_at'])
+
+        assert response_data == filtered_data
+
+
+    def test_get_all_orders_with_multi_filter(self, clean_db):
+        data_list = []
+        for _ in range(10):
+            beer_id = random.randint(1, 5)
+            user_id = random.randint(1, 5)
+            qty = random.randint(1, 10)
+            days_ago = random.randint(1, 1000)
+            ordered_at = datetime.now() - timedelta(days=days_ago)
+            price_paid = round(random.uniform(1, 200), 2)
+
+            data = create_payload(beer_id, user_id, qty, ordered_at, price_paid)
+            data_list.append(data)
+
+        keys_order = ['beer_id', 'user_id', 'qty', 'ordered_at', 'price_paid']
+        data_string = f"{'),('.join([payload_to_string(data, keys_order) for data in data_list])}"
+
+        with db.atomic():
+            db.execute_sql(
+                f"INSERT INTO orders (beer_id, user_id, qty, ordered_at, price_paid) VALUES ({data_string});"
+            )
+
+        filter1_field, filter1_op, filter1_value = "qty", "[lt]", 5
+        filter2_field, filter2_op, filter2_value = "price_paid", "[ge]", 50.00
+
+        filtered_data = apply_filter(data_list, filter1_field, filter1_op, filter1_value)
+        filtered_data = apply_filter(filtered_data, filter2_field, filter2_op, filter2_value)
+
+        url = f"/orders/?{filter1_field}{filter1_op}={filter1_value}&{filter2_field}{filter2_op}={filter2_value}"
+        response = client.get(url)
+        response_data = response.json()["results"]
+
+        for item in response_data:
+            del item['id']
+            item['ordered_at'] = datetime.fromisoformat(item['ordered_at'])
+
+        assert response_data == filtered_data
+
 
 # class Test_update_order:
 #     def test_update_order_content(self):

@@ -229,11 +229,11 @@ class Test_filter_beers:
                 price=i,
             )
             data_list.append(payload_to_string(data))
-        data_string = f"({'),('.join(data_list)})"
+        data_string = f"{'),('.join(data_list)}"
 
         with db.atomic():
             db.execute_sql(
-                f"INSERT INTO beers (name, style, abv, price) VALUES {data_string}"
+                f"INSERT INTO beers (name, style, abv, price) VALUES ({data_string});"
             )
 
         url = f"/beers/?{field}{op}={value}"
