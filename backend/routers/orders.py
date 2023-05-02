@@ -38,16 +38,15 @@ async def get_orders(request: Request):
 async def get_order_by_id(order_id: int):
     try:
         query = Order.select().where(Order.id == order_id)
-        
+
         if not query:
             raise HTTPException(status_code=404, detail="Order not found")
         else:
             return query.get()
-        
+
     except (IntegrityError, DataError) as e:
         code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)    
-
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.post("/")
@@ -73,7 +72,7 @@ async def delete_order(order_id):
             with db.atomic():
                 Order.delete().where(Order.id == order_id).execute()
                 return Response(status_code=204)
-    
+
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)
