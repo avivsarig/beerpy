@@ -1,4 +1,6 @@
 .gitignore
+.vscode
+
 dist
 node_modules
 
@@ -11,4 +13,3 @@ backend/config.json
 */archive/
 
 */.dmypy.json
-.vscode/

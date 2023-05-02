@@ -13,6 +13,7 @@ router = APIRouter(prefix="/orders", responses={404: {"description": "Not found"
 async def get_orders(request: Request):
     query = Order.select()
     filters = query_to_filters(request["query_string"])
+    print(filters)
     if filters != []:
         for filter in filters:
             if filter["field"] == "beer_id":
