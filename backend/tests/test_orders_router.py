@@ -294,20 +294,17 @@ class Test_filter_orders:
             ("qty", "[eq]", 8),
             ("qty", "[ge]", 3),
             ("qty", "[gt]", 2),
-
             ("ordered_at", "[lt]", "2023-01-01"),
             ("ordered_at", "[le]", "2023-02-01"),
             ("ordered_at", "[eq]", "2023-03-01"),
             ("ordered_at", "[ge]", "2023-04-01"),
             ("ordered_at", "[gt]", "2023-05-01"),
-
             ("price_paid", "", 50.00),
             ("price_paid", "[lt]", 100.00),
             ("price_paid", "[le]", 150.00),
             ("price_paid", "[eq]", 200.00),
             ("price_paid", "[ge]", 50.00),
             ("price_paid", "[gt]", 25.00),
-
             ("not_a_field", "", "non_existent_value"),
         ],
     )
@@ -324,14 +321,16 @@ class Test_filter_orders:
             data = create_payload(beer_id, user_id, qty, ordered_at, price_paid)
             data_list.append(data)
 
-        keys_order = ['beer_id', 'user_id', 'qty', 'ordered_at', 'price_paid']
-        data_string = f"{'),('.join([payload_to_string(data, keys_order) for data in data_list])}"
+        keys_order = ["beer_id", "user_id", "qty", "ordered_at", "price_paid"]
+        data_string = (
+            f"{'),('.join([payload_to_string(data, keys_order) for data in data_list])}"
+        )
 
         with db.atomic():
             db.execute_sql(
-                    f"INSERT INTO orders (beer_id, user_id, qty, ordered_at, price_paid) VALUES ({data_string});"
-                )
-        
+                f"INSERT INTO orders (beer_id, user_id, qty, ordered_at, price_paid) VALUES ({data_string});"
+            )
+
         if field == "ordered_at":
             value = datetime.strptime(value, "%Y-%m-%d")
         filtered_data = apply_filter(data_list, field, op, value)
@@ -341,11 +340,10 @@ class Test_filter_orders:
         response_data = response.json()["results"]
 
         for item in response_data:
-            del item['id']
-            item['ordered_at'] = datetime.fromisoformat(item['ordered_at'])
+            del item["id"]
+            item["ordered_at"] = datetime.fromisoformat(item["ordered_at"])
 
         assert response_data == filtered_data
-
 
     def test_get_all_orders_with_multi_filter(self, clean_db):
         data_list = []
@@ -360,8 +358,10 @@ class Test_filter_orders:
             data = create_payload(beer_id, user_id, qty, ordered_at, price_paid)
             data_list.append(data)
 
-        keys_order = ['beer_id', 'user_id', 'qty', 'ordered_at', 'price_paid']
-        data_string = f"{'),('.join([payload_to_string(data, keys_order) for data in data_list])}"
+        keys_order = ["beer_id", "user_id", "qty", "ordered_at", "price_paid"]
+        data_string = (
+            f"{'),('.join([payload_to_string(data, keys_order) for data in data_list])}"
+        )
 
         with db.atomic():
             db.execute_sql(
@@ -371,29 +371,101 @@ class Test_filter_orders:
         filter1_field, filter1_op, filter1_value = "qty", "[lt]", 5
         filter2_field, filter2_op, filter2_value = "price_paid", "[ge]", 50.00
 
-        filtered_data = apply_filter(data_list, filter1_field, filter1_op, filter1_value)
-        filtered_data = apply_filter(filtered_data, filter2_field, filter2_op, filter2_value)
+        filtered_data = apply_filter(
+            data_list, filter1_field, filter1_op, filter1_value
+        )
+        filtered_data = apply_filter(
+            filtered_data, filter2_field, filter2_op, filter2_value
+        )
 
         url = f"/orders/?{filter1_field}{filter1_op}={filter1_value}&{filter2_field}{filter2_op}={filter2_value}"
         response = client.get(url)
         response_data = response.json()["results"]
 
         for item in response_data:
-            del item['id']
-            item['ordered_at'] = datetime.fromisoformat(item['ordered_at'])
+            del item["id"]
+            item["ordered_at"] = datetime.fromisoformat(item["ordered_at"])
 
         assert response_data == filtered_data
 
 
-# class Test_update_order:
-#     def test_update_order_content(self):
-#         assert 1==0
+class Test_update_order:
+    @pytest.mark.parametrize(
+        "beer_id, user_id, qty, ordered_at, price_paid",
+        [
+            (2, None, None, None, None),
+            (None, 2, None, None, None),
+            (None, None, 2, None, None),
+            (None, None, None, datetime.now().isoformat(), None),
+            (None, None, None, None, 2),
+            (2, 2, 2, datetime.now().isoformat(), 2),
+        ],
+    )
+    def test_update_order_content(self, beer_id, user_id, qty, ordered_at, price_paid):
+        with db.atomic():
+            time = datetime.now()
+            id = db.execute_sql(
+                f"INSERT INTO orders (beer_id, user_id, qty, ordered_at, price_paid) VALUES (1, 1, 1, '{time}', 1) RETURNING id;"
+            ).fetchall()[0][0]
 
-#     def test_update_order_ok_code(self):
-#         assert 1==0
+        updated_payload = create_payload(beer_id, user_id, qty, ordered_at, price_paid)
 
-#     def test_update_order_not_found(self):
-#         assert 1==0
+        old_order = {
+            key: float(value) if isinstance(value, Decimal) else value
+            for key, value in Order.select().where(Order.id == id).dicts().get().items()
+        }
 
-#     def test_order_invalid(self):
-#         assert 1==0
+        client.put(f"/orders/{id}", json=updated_payload)
+
+        updated_order = {
+            key: value.isoformat()
+            if isinstance(value, datetime)
+            else float(value)
+            if isinstance(value, Decimal)
+            else value
+            for key, value in Order.select().where(Order.id == id).dicts().get().items()
+        }
+
+        expected_res = updated_payload
+        for key in old_order.keys():
+            if key not in expected_res.keys():
+                if key == "ordered_at":
+                    expected_res[key] = old_order[key].isoformat()
+                elif key == "price_paid":
+                    expected_res[key] = float(old_order[key])
+                else:
+                    expected_res[key] = old_order[key]
+
+        assert updated_order == expected_res
+
+    def test_update_order_ok_code(self):
+        with db.atomic():
+            time = datetime.now()
+            id = db.execute_sql(
+                f"INSERT INTO orders (beer_id, user_id, qty, ordered_at, price_paid) VALUES (1, 1, 1, '{time}', 1) RETURNING id;"
+            ).fetchall()[0][0]
+
+        updated_payload = create_payload(
+            beer_id=2,
+            user_id=2,
+            qty=2,
+            ordered_at=datetime.now().isoformat(),
+            price_paid=2,
+        )
+
+        response = client.put(f"/orders/{id}", json=updated_payload)
+
+        assert response.status_code == 200
+
+    def test_update_order_not_found(self):
+        updated_payload = create_payload(
+            beer_id=2,
+            user_id=2,
+            qty=2,
+            ordered_at=datetime.now().isoformat(),
+            price_paid=2,
+        )
+
+        response = client.put(f"/orders/1", json=updated_payload)
+
+        assert response.status_code == 404
