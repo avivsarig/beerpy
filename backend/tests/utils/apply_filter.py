@@ -1,13 +1,14 @@
 import operator
 
+
 def apply_filter(data_list, field, op, value):
     filtered_data = []
     if field not in data_list[0].keys():
         return data_list
 
-    if op == '':
-        op = '[eq]'
-    
+    if op == "":
+        op = "[eq]"
+
     operators = {
         "[lt]": operator.lt,
         "[le]": operator.le,

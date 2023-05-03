@@ -95,5 +95,5 @@ async def update(request: Request, order_id):
                 Order.update(**body).where(Order.id == order_id).execute()
 
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
