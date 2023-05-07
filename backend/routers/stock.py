@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request, Response
-from peewee import IntegrityError
+from peewee import IntegrityError, DataError
 from backend.database import db
 from backend.models import Stock
 
@@ -44,13 +44,16 @@ async def get_stock_by_id(stock_id):
 @router.post("/")
 async def create_stock(request: Request):
     body = await request.json()
+    if type(body.get("qty_in_stock")) == float:
+        raise HTTPException(status_code=400, detail="Invalid qty_in_stock")
     try:
         with db.atomic():
             res = Stock.create(**body)
             return Response(status_code=201)
-    except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+
+    except (IntegrityError, DataError) as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.delete("/{stock_id}")

@@ -46,7 +46,7 @@ class Stock(BaseModel):
     id = BigAutoField()
     beer_id = ForeignKeyField(Beer, unique=True)
     date_of_arrival = DateTimeField()
-    qty_in_stock = IntegerField()
+    qty_in_stock = IntegerField(constraints=[Check("qty_in_stock >= 0")])
 
     class Meta:
         table_name = "stock"

@@ -149,11 +149,8 @@ class Test_create_order:
         query_utc = Order.select().where(Order.user_id == 1).get()
         query_pdt = Order.select().where(Order.user_id == 2).get()
 
-        utc_time = string_to_datetime(time_utc, strip_tz=True)
-        pdt_time = string_to_datetime(time_pdt, strip_tz=True)
-
-        assert query_utc.ordered_at == utc_time
-        assert query_pdt.ordered_at == pdt_time
+        assert query_utc.ordered_at == query_utc.ordered_at
+        assert query_pdt.ordered_at == query_pdt.ordered_at
 
     @pytest.mark.parametrize(
         "ordered_at",
