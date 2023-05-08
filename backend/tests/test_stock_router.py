@@ -165,40 +165,109 @@ class Test_stock_router:
         assert query.date_of_arrival == arrival_datetime
 
 
-# class Test_delete_stock:
-#     def test_delete_stock_content(self):
-#         assert 1==0
+class Test_delete_stock:
+    def test_delete_stock_content(self):
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES ({random.randint(1, 5)}, '{datetime.now().isoformat()}',1000) RETURNING id;"
+            ).fetchall()[0][0]
+        client.delete(f"/stock/{id}")
+        assert len(db.execute_sql("SELECT * FROM stock;").fetchall()) == 0
 
-#     def test_delete_stock_ok_code(self):
-#         assert 1==0
+    def test_delete_stock_ok_code(self):
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES ({random.randint(1, 5)}, '{datetime.now().isoformat()}',1000) RETURNING id;"
+            ).fetchall()[0][0]
+        response = client.delete(f"/stock/{id}")
+        assert response.status_code == 204
 
-#     def test_delete_stock_not_found(self):
-#         assert 1==0
-
-
-# class Test_update_stock:
-#     def test_update_stock_content(self):
-#         assert 1==0
-
-#     def test_update_stock_ok_code(self):
-#         assert 1==0
-
-#     def test_update_stock_not_found(self):
-#         assert 1==0
-
-#     def test_update_stock_invalid(self):
-#         assert 1==0
+    def test_delete_stock_not_found(self):
+        response = client.delete(f"/stock/1")
+        assert response.status_code == 404
 
 
-# class Test_delete_stock:
-#     def test_delete_stock_content(self):
-#         assert 1==0
+class Test_update_stock:
+    @pytest.mark.parametrize(
+            "beer_id, date_of_arrival, qty_in_stock",
+            [
+                (2, None, None),
+                (None, "2022-02-01T00:00:00", None),
+                (None, None, 2000),
+            ]
+    )
+    def test_update_stock_content(self, beer_id, date_of_arrival, qty_in_stock):
+        with db.atomic():
+            time = "2022-01-01T00:00:00"
+            id = db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES (1, '{time}',1000) RETURNING id;"
+            ).fetchall()[0][0]
 
-#     def test_delete_stock_ok_code(self):
-#         assert 1==0
+        updated_payload = create_payload(beer_id, date_of_arrival, qty_in_stock)
 
-#     def test_delete_stock_not_found(self):
-#         assert 1==0
+        old_stock = {
+            key: value for key, value in Stock.select().where(Stock.id == id).dicts().get().items()
+        }
+
+        client.put(f"/stock/{id}", json=updated_payload)
+
+        updated_stock = {
+            key: value.isoformat()
+            if isinstance(value, datetime)
+            else value
+            for key, value in Stock.select().where(Stock.id == id).dicts().get().items()
+        }
+
+        expected_res = updated_payload
+        for key in old_stock.keys():
+            if key not in expected_res.keys():
+                if key == "date_of_arrival":
+                    expected_res[key] = old_stock[key].isoformat()
+                else:
+                    expected_res[key] = old_stock[key]
+
+        assert updated_stock == expected_res
+
+    def test_update_stock_ok_code(self):
+        with db.atomic():
+            time = datetime.now().isoformat()
+            id = db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES (1, '{time}',1000) RETURNING id;"
+            ).fetchall()[0][0]
+
+
+        updated_time = (datetime.fromisoformat(time) - timedelta(days=3)).isoformat()
+        updated_payload = create_payload(2, updated_time, 2000)
+        
+        response = client.put(f"/stock/{id}", json=updated_payload)
+        assert response.status_code == 200
+
+    def test_update_stock_not_found(self):
+        updated_payload = create_payload(2, datetime.now().isoformat(), 2000)
+        
+        response = client.put(f"/stock/1", json=updated_payload)
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        "beer_id, date_of_arrival, qty_in_stock",
+        [
+            # Non-existing foreign key
+            (99, None, None),
+            # Invalid qty_in_stock
+            (None, None, -1),
+            (None, None, 10.5),
+        ],
+    )
+    def test_update_stock_invalid(self, beer_id, date_of_arrival, qty_in_stock):
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES (1, '{datetime.now().isoformat()}',1000) RETURNING id;"
+            ).fetchall()[0][0]
+        
+        payload = create_payload(beer_id, date_of_arrival, qty_in_stock)
+        response = client.put(f"/stock/{id}", json=payload)
+
+        assert response.status_code == 400
 
 
 # class Test_get_stock:

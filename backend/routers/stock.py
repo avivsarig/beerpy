@@ -70,6 +70,8 @@ async def delete_stock(stock_id):
 @router.put("/{stock_id}")
 async def update_stock(request: Request, stock_id: int):
     body = await request.json()
+    if type(body.get("qty_in_stock")) == float:
+        raise HTTPException(status_code=400, detail="Invalid qty_in_stock")
     try:
         query = Stock.select().where(Stock.id == stock_id)
         if not query.exists():
