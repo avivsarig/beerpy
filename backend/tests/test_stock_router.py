@@ -298,17 +298,124 @@ class Test_get_stock:
         assert response.status_code == 404
 
 
-# class Test_get_all_stock:
-#     def test_get_all_stock_content(self):
-#         assert 1==0
+class Test_get_all_stock:
+    def test_get_all_stock_content(self):
+        with db.atomic():
+            for i in range(1, 6):
+                time = datetime.now().isoformat()
+                data = create_payload(i, time, random.randint(1, 5000))
+                
+                data_string = payload_to_string(data)
+                db.execute_sql(
+                    f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES ({data_string});"
+                )
 
-#     def test_get_all_stock_ok_code(self):
-#         assert 1==0
+        response = client.get("/stock/")
+        assert response.json()["qty"] == 5
+
+        query = list(Stock.select(Stock.beer_id, Stock.date_of_arrival, Stock.qty_in_stock).dicts())
+        for row in query:
+            row["date_of_arrival"] = datetime.isoformat(row["date_of_arrival"])
+            row["id"] = row["beer_id"]
+
+        assert query == response.json()["results"]
 
 
-# class Test_filter_stock:
-#     def test_get_all_filter_stock(self):
-#         assert 1==0
+    def test_get_all_stock_ok_code(self):
+        with db.atomic():
+            for i in range(1, 6):
+                time = datetime.now().isoformat()
+                data = create_payload(i, time, random.randint(1, 5000))
+                
+                data_string = payload_to_string(data)
+                db.execute_sql(
+                    f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES ({data_string});"
+                )
+        
+        response = client.get("/stock/")
+        assert response.status_code == 200
 
-#     def test_get_all_multi_filter_stock(self):
-#         assert 1==0
+
+class Test_filter_stock:
+    @pytest.mark.parametrize(
+        "field, op, value",
+        [
+            ("date_of_arrival", "[lt]", "2023-01-01"),
+            ("date_of_arrival", "[le]", "2023-02-01"),
+            ("date_of_arrival", "[eq]", "2023-03-01"),
+            ("date_of_arrival", "[ge]", "2023-04-01"),
+            ("date_of_arrival", "[gt]", "2023-05-01"),
+            ("qty_in_stock", "[lt]", random.randint(1, 5000)),
+            ("qty_in_stock", "[le]", random.randint(1, 5000)),
+            ("qty_in_stock", "[eq]", random.randint(1, 5000)),
+            ("qty_in_stock", "[ge]", random.randint(1, 5000)),
+            ("qty_in_stock", "[gt]", random.randint(1, 5000)),
+        ]
+    )
+    def test_get_all_filter_stock(self, field, op, value):
+        data_list = []
+        for i in range(1, 6):
+            beer_id = i
+            date_of_arrival = (datetime.now() - timedelta(days=random.randint(0, 15000))).isoformat()
+            qty_in_stock = random.randint(1, 5000)
+            data = create_payload(beer_id, date_of_arrival, qty_in_stock)
+            data_list.append(data)
+
+        data_string = (
+            f"{'),('.join([payload_to_string(data) for data in data_list])}"
+        )
+
+        with db.atomic():
+            db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES ({data_string});"
+            )
+
+        if field == "date_of_arrival":
+            value = datetime.strptime(value, "%Y-%m-%d")
+        filtered_data = apply_filter(data_list, field, op, value)
+
+        url = f"/stock/?{field}{op}={value}"
+        response = client.get(url)
+        response_data = response.json()["results"]
+
+        for item in response_data:
+            del item["id"]
+
+        assert response_data == filtered_data
+
+    def test_get_all_multi_filter_stock(self):
+        data_list = []
+        for i in range(1, 6):
+            beer_id = i
+            date_of_arrival = (datetime.now() - timedelta(days=random.randint(0, 15000))).isoformat()
+            qty_in_stock = random.randint(1, 5000)
+            data = create_payload(beer_id, date_of_arrival, qty_in_stock)
+            data_list.append(data)
+
+        data_string = (
+            f"{'),('.join([payload_to_string(data) for data in data_list])}"
+        )
+
+        with db.atomic():
+            db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES ({data_string});"
+            )
+
+        filter1_field, filter1_op, filter1_value = "date_of_arrival", "[lt]", datetime.strptime("2023-01-01", "%Y-%m-%d")
+        filter2_field, filter2_op, filter2_value = "qty_in_stock", "[ge]", 1000
+
+        filtered_data = apply_filter(
+            data_list, filter1_field, filter1_op, filter1_value
+        )
+        filtered_data = apply_filter(
+            filtered_data, filter2_field, filter2_op, filter2_value
+        )
+
+        url = f"/stock/?{filter1_field}{filter1_op}={filter1_value}&{filter2_field}{filter2_op}={filter2_value}"
+        response = client.get(url)
+        response_data = response.json()["results"]
+
+        for item in response_data:
+            del item["id"]
+
+        assert response_data == filtered_data

@@ -1,4 +1,5 @@
 import operator
+from datetime import datetime
 
 
 def apply_filter(data_list, field, op, value):
@@ -17,7 +18,13 @@ def apply_filter(data_list, field, op, value):
         "[gt]": operator.gt,
     }
 
+    if field == "date_of_arrival":
+        value = datetime.isoformat(value)
+
     for data in data_list:
+        if field == "date_of_arrival":
+            data[field] = datetime.fromisoformat(data[field]).isoformat()
+            
         if operators[op](data[field], value):
             filtered_data.append(data)
 
