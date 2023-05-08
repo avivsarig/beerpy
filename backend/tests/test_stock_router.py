@@ -270,15 +270,32 @@ class Test_update_stock:
         assert response.status_code == 400
 
 
-# class Test_get_stock:
-#     def test_get_stock_content(self):
-#         assert 1==0
+class Test_get_stock:
+    def test_get_stock_content(self):
+        time = datetime.now().isoformat()
+        data = create_payload(1, time, 1000)
+        data_string = payload_to_string(data)
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES ({data_string}) RETURNING id;"
+            ).fetchall()[0][0]
+        data["id"] = id
 
-#     def test_get_stock_ok_code(self):
-#         assert 1==0
+        response = client.get(f"/stock/{id}")
+        assert response.json()["__data__"] == data
 
-#     def test_get_stock_not_found(self):
-#         assert 1==0
+    def test_get_stock_ok_code(self):
+        with db.atomic():
+            id = db.execute_sql(
+                f"INSERT INTO stock (beer_id, date_of_arrival, qty_in_stock) VALUES (1, '{datetime.now().isoformat()}',1000) RETURNING id;"
+            ).fetchall()[0][0]
+
+        response = client.get(f"/stock/{id}")
+        assert response.status_code == 200
+
+    def test_get_stock_not_found(self):
+        response = client.get(f"/stock/1")
+        assert response.status_code == 404
 
 
 # class Test_get_all_stock:
