@@ -43,8 +43,8 @@ def string_to_datetime(date_str: str, strip_tz: bool = False):
 
 
 def setup_module():
-    db.bind([Beer, User, Order])
-    db.create_tables([Beer, User, Order])
+    db.bind([Item, User, Order])
+    db.create_tables([Item, User, Order])
 
 
 def teardown_module():
