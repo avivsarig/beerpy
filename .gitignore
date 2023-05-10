@@ -11,3 +11,4 @@ backend/config.json
 */archive/
 
 */.dmypy.json
+./vscode/
