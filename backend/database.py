@@ -7,6 +7,7 @@ db = PostgresqlDatabase(None)
 
 db_name = config["DATABASE"]
 db_host = config["PGHOST"]
+db_host_port = config["PGHOST_PORT"]
 db_user = config["USER"]
 db_password = config["PASSWORD"]
 
