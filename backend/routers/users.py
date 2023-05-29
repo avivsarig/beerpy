@@ -1,53 +1,62 @@
-from fastapi import APIRouter, HTTPException, Request, Response
-from peewee import IntegrityError
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
-from backend.database import db
-from backend.models import User
+from backend.database import get_db
+from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
 
-router = APIRouter(prefix="/users", responses={404: {"description": "Not found\n"}})
+router = APIRouter(prefix="/users")
 
-@router.get("/")
-async def get_users(request: Request) -> dict:
-    query = User.select(User.id, User.name, User.address, User.phone)
-    filters = query_to_filters(request["query_string"])
-    if filters != []:
-        for filter in filters:
-            if filter["field"] == "name":
-                query = query.where(User.name == filter["value"])
-            elif filter["field"] == "email":
-                query = query.where(User.email == filter["value"])
-            elif filter["field"] == "address":
-                query = query.where(User.address == filter["value"])
-            elif filter["field"] == "phone":
-                query = query.where(User.phone == filter["value"])
 
-    res: dict = {"qty": 0, "results": []}
-    for user in query.dicts():
-        res["results"] += [user]
+@router.get("/", response_model=list[schemas.User])
+async def get_users(
+    request: Request,
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = settings.limit,
+):
+    try:
+        raw_query_string = str(request.url.query)
+        filters = query_to_filters(raw_query_string)
 
-    res["qty"] = len(res["results"])
-    return res
+        query = db.query(models.User)
+        for f in filters:
+            column = getattr(models.User, f["field"], None)
+            if column:
+                query = query.filter(f["op"](column, f["value"]))
+
+        users = query.offset(skip).limit(limit).all()
+        return users
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.get("/{user_id}")
-async def get_user_by_id(user_id):
-    query = User.select(User.id, User.name, User.email, User.address, User.phone)
-    if not query.exists():
-        raise HTTPException(status_code=404, detail="User not found\n")
-    else:
-        return query.get()
-
-
-@router.post("/")
-async def create_user(request: Request):
-    body = await request.json()
+async def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
     try:
-        with db.atomic():
-            User.create(**body)
-            return Response(status_code=201)
+        db_user = db.query(models.User).filter(models.User.user_id == user_id).first()
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="User not found\n")
+        return db_user
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.post("/", response_model=schemas.User, status_code=201)
+async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    try:
+        db_user = models.User(**user.dict())
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        return db_user
 
     except IntegrityError as e:
         code, message = response_from_error(e)
@@ -55,26 +64,34 @@ async def create_user(request: Request):
 
 
 @router.delete("/{user_id}")
-async def delete_user(user_id):
-    query = User.select().where(User.id == user_id)
-    if not query.exists():
-        raise HTTPException(status_code=404, detail="User not found\n")
-    else:
-        with db.atomic():
-            User.delete().where(User.id == user_id).execute()
-            return Response(status_code=204)
-
-
-@router.put("/{user_id}")
-async def update_user(request: Request, user_id):
-    body = await request.json()
+async def delete_user(user_id: int, db: Session = Depends(get_db)):
     try:
-        query = User.select().where(User.id == user_id)
-        if not query.exists():
+        db_user = db.query(models.User).filter(models.User.user_id == user_id).first()
+        if db_user is None:
             raise HTTPException(status_code=404, detail="User not found\n")
-        else:
-            with db.atomic():
-                User.update(**body).where(User.id == user_id).execute()
+        db.delete(db_user)
+        db.commit()
+        return Response(status_code=204)
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.put("/{user_id}", response_model=models.User)
+async def update_user(user_id: int, user: schemas.User, db: Session = Depends(get_db)):
+    try:
+        db_user = db.query(models.User).filter(models.User.user_id == user_id).first()
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="User not found\n")
+        for attr, value in user.dict().items():
+            if value is None:
+                setattr(user, attr, value)
+
+            db.commit()
+            db.refresh(db_user)
+            return user
+
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)

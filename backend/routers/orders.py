@@ -1,15 +1,18 @@
-from fastapi import APIRouter, HTTPException, Request, Response
-from peewee import IntegrityError
-from backend.database import db
-from backend.models import Order, Beer, User
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+from backend.database import get_db
+from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
+from backend.utils.error_handler import response_from_error
 
 
-router = APIRouter(prefix="/orders", responses={404: {"description": "Not found"}})
+router = APIRouter(prefix="/orders")
 
 
-@router.get("/")
+@router.get("/", response_model=list[schemas.Order])
 async def get_orders(request: Request):
     query = Order.select()
     filters = query_to_filters(request["query_string"])

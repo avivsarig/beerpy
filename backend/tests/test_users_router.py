@@ -131,9 +131,7 @@ class Test_get_user:
                 f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string}) RETURNING id;"
             ).fetchall()[0][0]
         response = client.get(f"/users/{id}")
-        res_correct = {
-            key: data[key] for key in ["name", "email", "address", "phone"]
-        }
+        res_correct = {key: data[key] for key in ["name", "email", "address", "phone"]}
         res_correct["id"] = id
         assert response.json()["__data__"] == res_correct
 
@@ -154,11 +152,19 @@ class Test_get_all:
     def test_get_all(self, clean_db):
         with db.atomic():
             for i in range(10):
-                data = create_payload(f'test_get_all{i}', f'test_email{i}', f'test_pw{i}', f'test_address{i}', f'test_phone{i}')
+                data = create_payload(
+                    f"test_get_all{i}",
+                    f"test_email{i}",
+                    f"test_pw{i}",
+                    f"test_address{i}",
+                    f"test_phone{i}",
+                )
                 data_string = payload_to_string(data)
-                db.execute_sql(f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string});")
+                db.execute_sql(
+                    f"INSERT INTO users (name, email, password, address, phone) VALUES ({data_string});"
+                )
 
         query = User.select(User.id, User.name, User.email, User.address, User.phone)
         response = client.get("/users/")
-        print(response.json()['results'])
+        print(response.json()["results"])
         assert query == response
