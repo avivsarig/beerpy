@@ -1,4 +1,7 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -9,6 +12,8 @@ from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
 
 
+PAGE_LIMIT = int(os.getenv("BEERAPP_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
+
 router = APIRouter(prefix="/beers")
 
 
@@ -17,7 +22,7 @@ async def get_beers(
     request: Request,
     db: Session = Depends(get_db),
     skip: int = 0,
-    limit: int = settings.limit,
+    limit: int = PAGE_LIMIT,
 ):
     try:
         raw_query_string = str(request.url.query)
@@ -90,7 +95,6 @@ async def update_beer(beer_id: int, beer: schemas.Beer, db: Session = Depends(ge
                 setattr(beer, attr, value)
 
             db.commit()
-            db.refresh(db_beer)
             return beer
 
     except IntegrityError as e:
