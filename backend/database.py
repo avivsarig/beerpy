@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, exc
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+
 def init_db():
     config = json.load(open("./backend/config.json", "r"))
 
@@ -23,8 +24,10 @@ def init_db():
         connection = engine.connect()
         print("🔗 Database connection established")
     except exc.OperationalError:
-        print("❗ Could not connect to the database. Please check your database settings and connection.")
-        sys.exit(1) 
+        print(
+            "❗ Could not connect to the database. Please check your database settings and connection."
+        )
+        sys.exit(1)
 
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base = declarative_base()
@@ -38,5 +41,5 @@ def init_db():
 
     return engine, SessionLocal, Base, get_db
 
-engine, SessionLocal, Base, get_db = init_db()
 
+engine, SessionLocal, Base, get_db = init_db()

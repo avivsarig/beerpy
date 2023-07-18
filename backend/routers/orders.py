@@ -42,15 +42,16 @@ async def get_orders(
 @router.get("/{order_id}", response_model=schemas.Order)
 async def get_order_by_id(order_id: int, db: Session = Depends(get_db)):
     try:
-        db_order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+        db_order = (
+            db.query(models.Order).filter(models.Order.order_id == order_id).first()
+        )
         if db_order is None:
             raise HTTPException(status_code=404, detail="Order not found")
         return db_order
-    
+
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)
-    
 
 
 @router.post("/", response_model=schemas.Order, status_code=201)
@@ -61,7 +62,7 @@ async def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)
         db.commit()
         db.refresh(db_order)
         return db_order
-    
+
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)
@@ -70,7 +71,9 @@ async def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)
 @router.delete("/{order_id}")
 async def delete_order(order_id: int, db: Session = Depends(get_db)):
     try:
-        db_order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+        db_order = (
+            db.query(models.Order).filter(models.Order.order_id == order_id).first()
+        )
         if db_order is None:
             raise HTTPException(status_code=404, detail="Order not found\n")
         db.delete(db_order)
@@ -85,7 +88,9 @@ async def delete_order(order_id: int, db: Session = Depends(get_db)):
 @router.put("/{order_id}", response_model=schemas.Order)
 async def update(order_id: int, order: schemas.Order, db: Session = Depends(get_db)):
     try:
-        db_order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
+        db_order = (
+            db.query(models.Order).filter(models.Order.order_id == order_id).first()
+        )
         if db_order is None:
             raise HTTPException(status_code=404, detail="Order not found\n")
         for attr, value in order.dict().items():
