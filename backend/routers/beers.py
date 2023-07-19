@@ -12,7 +12,7 @@ from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
 
 
-PAGE_LIMIT = int(os.getenv("BEERAPP_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
+PAGE_LIMIT = int(os.getenv("BEER_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
 
 router = APIRouter(prefix="/beers")
 

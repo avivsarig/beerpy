@@ -1,4 +1,7 @@
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -8,6 +11,8 @@ from backend import models, schemas, settings
 from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
 
+PAGE_LIMIT = int(os.getenv("USER_PAGE_LIMIT", settings.USER_PAGE_LIMIT))
+
 router = APIRouter(prefix="/users")
 
 
@@ -16,7 +21,7 @@ async def get_users(
     request: Request,
     db: Session = Depends(get_db),
     skip: int = 0,
-    limit: int = settings.limit,
+    limit: int = PAGE_LIMIT,
 ):
     try:
         raw_query_string = str(request.url.query)
