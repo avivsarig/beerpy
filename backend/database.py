@@ -7,7 +7,8 @@ from sqlalchemy.orm import sessionmaker
 
 
 def init_db():
-    config = json.load(open("./backend/config.json", "r"))
+    with open("./backend/config.json", "r") as config_file:
+        config = json.load(config_file)
 
     db_name = config["DATABASE"]
     db_host = config["PGHOST"]

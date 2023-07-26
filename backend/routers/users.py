@@ -83,7 +83,7 @@ async def delete_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=code, detail=message)
 
 
-@router.put("/{user_id}", response_model=models.User)
+@router.put("/{user_id}", response_model=schemas.User)
 async def update_user(user_id: int, user: schemas.User, db: Session = Depends(get_db)):
     try:
         db_user = db.query(models.User).filter(models.User.user_id == user_id).first()
