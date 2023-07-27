@@ -1,4 +1,4 @@
-import json
+from backend import settings
 import sys
 
 from sqlalchemy import create_engine, exc
@@ -7,18 +7,16 @@ from sqlalchemy.orm import sessionmaker
 
 
 def init_db():
-    with open("./backend/config.json", "r") as config_file:
-        config = json.load(config_file)
-
-    db_name = config["DATABASE"]
-    db_host = config["PGHOST"]
-    db_port = config["PORT"]
-    db_user = config["USER"]
-    db_password = config["PASSWORD"]
+    db_name = settings.DATABASE
+    db_host = settings.PGHOST
+    db_port = settings.PORT
+    db_user = settings.USER
+    db_password = settings.PASSWORD
 
     SQLALCHEMY_DATABASE_URL = (
         f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     )
+    print(SQLALCHEMY_DATABASE_URL)
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
     try:

@@ -25,8 +25,8 @@ class Beer(BeerBase):
 class UserBase(BaseModel):
     name: str
     email: str
-    address: str
-    phone: str
+    address: str | None
+    phone: str | None
 
 
 class UserCreate(UserBase):
