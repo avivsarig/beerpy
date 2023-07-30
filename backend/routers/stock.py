@@ -29,9 +29,9 @@ async def get_stock(
 
         query = db.query(models.Stock)
         for filter in filters:
-            column = getattr(models.Stock, f["field"], None)
+            column = getattr(models.Stock, filter["field"], None)
             if column:
-                query = query.filter(f["op"](column, f["value"]))
+                query = query.filter(filter["op"](column, filter["value"]))
 
         stock = query.offset(skip).limit(limit).all()
         return stock

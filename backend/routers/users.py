@@ -28,10 +28,10 @@ async def get_users(
         filters = query_to_filters(raw_query_string)
 
         query = db.query(models.User)
-        for f in filters:
-            column = getattr(models.User, f["field"], None)
+        for filter in filters:
+            column = getattr(models.User, filter["field"], None)
             if column:
-                query = query.filter(f["op"](column, f["value"]))
+                query = query.filter(filter["op"](column, filter["value"]))
 
         users = query.offset(skip).limit(limit).all()
         return users
