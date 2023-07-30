@@ -16,7 +16,6 @@ def init_db():
     SQLALCHEMY_DATABASE_URL = (
         f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     )
-    print(SQLALCHEMY_DATABASE_URL)
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
     try:
