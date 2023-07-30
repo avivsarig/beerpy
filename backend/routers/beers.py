@@ -1,81 +1,102 @@
-from fastapi import APIRouter, HTTPException, Request, Response
-from peewee import IntegrityError
-from backend.database import db
-from backend.models import Beer
+import os
 
-# from urllib.error import HTTPError
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
+
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+from backend.database import get_db
+from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
+from backend.utils.error_handler import response_from_error
 
 
-router = APIRouter(prefix="/beers", responses={404: {"description": "Not found"}})
+PAGE_LIMIT = int(os.getenv("BEER_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
+
+router = APIRouter(prefix="/beers")
 
 
-@router.get("/")
-async def get_beers(request: Request):
-    query = Beer.select()
-    filters = query_to_filters(request["query_string"])
-    if filters != []:
-        for filter in filters:
-            if filter["field"] == "name":
-                query = query.where(Beer.name == filter["value"])
-            if filter["field"] == "style":
-                query = query.where(Beer.style == filter["value"])
-            if filter["field"] == "abv":
-                query = query.where(filter["op"](Beer.abv, filter["value"]))
-            if filter["field"] == "price":
-                query = query.where(filter["op"](Beer.price, filter["value"]))
-
-    res: dict = {"qty": 0, "results": []}
-    for beer in query.dicts():
-        res["results"] += [beer]
-
-    res["qty"] = len(res["results"])
-    return res
-
-
-@router.get("/{beer_id}")
-async def get_beer_by_id(beer_id):
-    query = Beer.select().where(Beer.id == beer_id)
-    if not query.exists():
-        raise HTTPException(status_code=404, detail="Beer not found")
-    else:
-        return query.get()
-
-
-@router.post("/")
-async def create_beer(request: Request):
-    body = await request.json()
+@router.get("/", response_model=list[schemas.Beer])
+async def get_beers(
+    request: Request,
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = PAGE_LIMIT,
+):
     try:
-        with db.atomic():
-            res = Beer.create(**body)
-            return res
+        raw_query_string = str(request.url.query)
+        filters = query_to_filters(raw_query_string)
+
+        query = db.query(models.Beer)
+        for f in filters:
+            column = getattr(models.Beer, f["field"], None)
+            if column:
+                query = query.filter(f["op"](column, f["value"]))
+
+        beers = query.offset(skip).limit(limit).all()
+        return beers
+
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.get("/{beer_id}", response_model=schemas.Beer)
+async def get_beer_by_id(beer_id: int, db: Session = Depends(get_db)):
+    try:
+        db_beer = db.query(models.Beer).filter(models.Beer.beer_id == beer_id).first()
+        if db_beer is None:
+            raise HTTPException(status_code=404, detail="Beer not found\n")
+        return db_beer
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.post("/", response_model=schemas.Beer, status_code=201)
+async def create_beer(beer: schemas.BeerCreate, db: Session = Depends(get_db)):
+    try:
+        db_beer = models.Beer(**beer.dict())
+        db.add(db_beer)
+        db.commit()
+        db.refresh(db_beer)
+        return db_beer
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.delete("/{beer_id}")
-async def delete_beer(beer_id):
-    query = Beer.select().where(Beer.id == beer_id)
-    if not query.exists():
-        raise HTTPException(status_code=404, detail="Beer not found")
-    else:
-        with db.atomic():
-            return Beer.delete().where(Beer.id == beer_id).execute()
-
-
-@router.put("/{beer_id}")
-async def update_beer(request: Request, beer_id):
-    body = await request.json()
+async def delete_beer(beer_id: int, db: Session = Depends(get_db)):
     try:
-        query = Beer.select().where(Beer.id == beer_id)
-        if not query.exists():
-            raise HTTPException(status_code=404, detail="Beer not found")
-        else:
-            with db.atomic():
-                Beer.update(**body).where(Beer.id == beer_id).execute()
+        db_beer = db.query(models.Beer).filter(models.Beer.beer_id == beer_id).first()
+        if db_beer is None:
+            raise HTTPException(status_code=404, detail="Beer not found\n")
+        db.delete(db_beer)
+        db.commit()
+        return Response(status_code=204)
 
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.put("/{beer_id}", response_model=schemas.Beer)
+async def update_beer(beer_id: int, beer: schemas.Beer, db: Session = Depends(get_db)):
+    try:
+        db_beer = db.query(models.Beer).filter(models.Beer.beer_id == beer_id).first()
+        if db_beer is None:
+            raise HTTPException(status_code=404, detail="Beer not found\n")
+        for attr, value in beer.dict().items():
+            if value is not None:
+                setattr(beer, attr, value)
+
+            db.commit()
+            return beer
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)

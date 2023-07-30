@@ -1,80 +1,106 @@
-from fastapi import APIRouter, HTTPException, Request, Response
-from peewee import IntegrityError
-from backend.database import db
-from backend.models import Stock
+import os
 
-from backend.utils.error_handler import response_from_error
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
+
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+from backend.database import get_db
+from backend import models, schemas, settings
+
 from backend.utils.query_to_filters import query_to_filters
+from backend.utils.error_handler import response_from_error
+
+PAGE_LIMIT = int(os.getenv("STOCK_PAGE_LIMIT", settings.STOCK_PAGE_LIMIT))
 
 router = APIRouter(prefix="/stock")
 
 
-@router.get("/")
-async def get_stock(request: Request):
-    query = Stock.select()
-    filters = query_to_filters(request["query_string"])
-    if filters != []:
-
-        for filter in filters:
-            if filter["field"] == "beer_id":
-                query = query.where(Stock.beer_id == filter["value"])
-            if filter["field"] == "date_of_arrival":
-                query = query.where(
-                    filter["op"](Stock.date_of_arrival, filter["value"])
-                )
-            if filter["field"] == "qty_in_stock":
-                query = query.where(filter["op"](Stock.qty_in_stock, filter["value"]))
-
-    res: dict = {"qty": 0, "results": []}
-    for stock in query.dicts():
-        res["results"] += [stock]
-
-    res["qty"] = len(res["results"])
-    return res
-
-
-@router.get("/{stock_id}")
-async def get_stock_by_id(stock_id):
-    query = Stock.select().where(Stock.id == stock_id)
-    if not query.exists():
-        raise HTTPException(status_code=404, detail="Stock not found")
-    else:
-        return query.get()
-
-
-@router.post("/")
-async def create_stock(request: Request):
-    body = await request.json()
+@router.get("/", response_model=list[schemas.Stock])
+async def get_stock(
+    request: Request,
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = PAGE_LIMIT,
+):
     try:
-        with db.atomic():
-            res = Stock.create(**body)
-            return Response(status_code=201)
+        raw_query_string = str(request.url.query)
+        filters = query_to_filters(raw_query_string)
+
+        query = db.query(models.Stock)
+        for filter in filters:
+            column = getattr(models.Stock, f["field"], None)
+            if column:
+                query = query.filter(f["op"](column, f["value"]))
+
+        stock = query.offset(skip).limit(limit).all()
+        return stock
+
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.get("/{stock_id}", response_model=schemas.Stock)
+async def get_stock_by_id(stock_id: int, db: Session = Depends(get_db)):
+    try:
+        db_stock = (
+            db.query(models.Stock).filter(models.Stock.stock_id == stock_id).first()
+        )
+        if db_stock is None:
+            raise HTTPException(status_code=404, detail="Stock not found\n")
+        return db_stock
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.post("/", response_model=schemas.Stock, status_code=201)
+async def create_stock(stock: schemas.Stock, db: Session = Depends(get_db)):
+    try:
+        db_stock = models.Stock(**stock.dict())
+        db.add(db_stock)
+        db.commit()
+        db.refresh(db_stock)
+        return db_stock
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.delete("/{stock_id}")
-async def delete_stock(stock_id):
-    query = Stock.select().where(Stock.id == stock_id)
-    if not query.exists():
-        raise HTTPException(status_code=404, detail="Stock not found")
-    else:
-        with db.atomic():
-            Stock.delete().where(Stock.id == stock_id).execute()
-            return Response(status_code=204)
-
-
-@router.put("/{stock_id}")
-async def update_stock(request: Request, stock_id: int):
-    body = await request.json()
+async def delete_stock(stock_id: int, db: Session = Depends(get_db)):
     try:
-        query = Stock.select().where(Stock.id == stock_id)
-        if not query.exists():
-            raise HTTPException(status_code=404, detail="Stock not found")
-        else:
-            with db.atomic():
-                Stock.update(**body).where(Stock.id == stock_id).execute()
+        db_stock = (
+            db.query(models.Stock).filter(models.Stock.stock_id == stock_id).first()
+        )
+        if db_stock is None:
+            raise HTTPException(status_code=404, detail="Stock not found\n")
+        db.delete(db_stock)
+        db.commit()
+        return Response(status_code=204)
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.put("/{stock_id}", response_model=schemas.Stock)
+async def update_stock(
+    stock_id: int, stock: schemas.Stock, db: Session = Depends(get_db)
+):
+    try:
+        db_stock = (
+            db.query(models.Stock).filter(models.Stock.stock_id == stock_id).first()
+        )
+        if db_stock is None:
+            raise HTTPException(status_code=404, detail="Stock not found\n")
+        for attr, value in stock.dict().items():
+            if value is not None:
+                setattr(stock, attr, value)
+
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)

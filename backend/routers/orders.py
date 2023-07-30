@@ -1,99 +1,107 @@
-from fastapi import APIRouter, HTTPException, Request, Response
-from peewee import IntegrityError
-from backend.database import db
-from backend.models import Order, Beer, User
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
+
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+from backend.database import get_db
+from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
+from backend.utils.error_handler import response_from_error
+
+PAGE_LIMIT = int(os.getenv("ORDERS_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
+
+router = APIRouter(prefix="/orders")
 
 
-router = APIRouter(prefix="/orders", responses={404: {"description": "Not found"}})
+@router.get("/", response_model=list[schemas.Order])
+async def get_orders(
+    request: Request,
+    db: Session = Depends(get_db),
+    skip: int = 0,
+    limit: int = PAGE_LIMIT,
+):
+    try:
+        raw_query_string = str(request.url.query)
+        filters = query_to_filters(raw_query_string)
+
+        query = db.query(models.Order)
+        for f in filters:
+            column = getattr(models.Order, f["field"], None)
+            if column:
+                query = query.filter(f["op"](column, f["value"]))
+
+        orders = query.offset(skip).limit(limit).all()
+        return orders
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
-@router.get("/")
-async def get_orders(request: Request):
-    query = Order.select()
-    filters = query_to_filters(request["query_string"])
-    if filters != []:
-        for filter in filters:
-            if filter["field"] == "beer_id":
-                query = query.where(Order.beer_id == filter["beer_id"])
-            if filter["field"] == "user_id":
-                query = query.where(Order.user_id == filter["user_id"])
-            if filter["field"] == "qty":
-                query = query.where(filter["op"](Order.qty, filter["value"]))
-            if filter["field"] == "ordered_at":
-                query = query.where(filter["op"](Order.ordered_at, filter["value"]))
-            if filter["field"] == "price_paid":
-                query = query.where(filter["op"](Order.price_paid, filter["value"]))
-
-    res: dict = {"qty": 0, "results": []}
-    for order in query.dicts():
-        res["results"] += [order]
-
-    res["qty"] = len(res["results"])
-    return res
-
-
-@router.get("/{order_id}")
-async def get_order_by_id(order_id):
-    query = (
-        Order.select(
-            Order.id,
-            Beer.name,
-            User.name,
-            Order.qty,
-            Order.ordered_at,
-            Order.price_paid,
+@router.get("/{order_id}", response_model=schemas.Order)
+async def get_order_by_id(order_id: int, db: Session = Depends(get_db)):
+    try:
+        db_order = (
+            db.query(models.Order).filter(models.Order.order_id == order_id).first()
         )
-        .join(Beer, on=(Order.beer_id == Beer.id))
-        .join(User, on=(Order.user_id == User.id))
-        .where(Order.id == order_id)
-    )
+        if db_order is None:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return db_order
 
-    if not query.exists():
-        raise HTTPException(status_code=404, detail="Beer not found")
-    else:
-        return query.get()
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
-@router.post("/")
-async def create_order(request: Request):
-    body = await request.json()
-    with db.atomic():
-        try:
-            res = Order.create(**body)
-            return res
-        except IntegrityError as e:
-            print(e, flush=True)
-            return Response()
+@router.post("/", response_model=schemas.Order, status_code=201)
+async def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)):
+    try:
+        db_order = models.Order(**order.dict())
+        db.add(db_order)
+        db.commit()
+        db.refresh(db_order)
+        return db_order
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
 @router.delete("/{order_id}")
-async def delete_order(order_id):
+async def delete_order(order_id: int, db: Session = Depends(get_db)):
     try:
-        query = Order.select().where(Order.id == order_id)
-        if not query.exists():
-            raise HTTPException(status_code=404, detail="Order not found")
-        else:
-            with db.atomic():
-                return Order.delete().where(Order.id == order_id).execute()
+        db_order = (
+            db.query(models.Order).filter(models.Order.order_id == order_id).first()
+        )
+        if db_order is None:
+            raise HTTPException(status_code=404, detail="Order not found\n")
+        db.delete(db_order)
+        db.commit()
+        return Response(status_code=204)
 
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
 
 
-@router.put("/{order_id}")
-async def update(request: Request, order_id):
-    body = await request.json()
+@router.put("/{order_id}", response_model=schemas.Order)
+async def update(order_id: int, order: schemas.Order, db: Session = Depends(get_db)):
     try:
-        query = Order.select().where(Order.id == order_id)
-        if not query.exists():
-            raise HTTPException(status_code=404, detail="Order not found")
-        else:
-            with db.atomic():
-                Order.update(**body).where(Order.id == order_id).execute()
+        db_order = (
+            db.query(models.Order).filter(models.Order.order_id == order_id).first()
+        )
+        if db_order is None:
+            raise HTTPException(status_code=404, detail="Order not found\n")
+        for attr, value in order.dict().items():
+            if value is not None:
+                setattr(order, attr, value)
+
+            db.commit()
+            return order
 
     except IntegrityError as e:
-        print(e, flush=True)
-        return Response()
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)

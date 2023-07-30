@@ -19,7 +19,7 @@ def query_to_filters(raw_query_string: str):
     filters = []
     for item in query_list:
         field, value = item.split("=")
-        if field in ["page", "sort", "limit", "fields"]:
+        if field in ["page", "sort", "skip", "limit", "fields"]:
             break
         op = "eq"
         if ("[" in field) and ("]" in field):

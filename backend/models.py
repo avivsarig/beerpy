@@ -1,52 +1,40 @@
-from peewee import *
-from backend.database import db
+from sqlalchemy import ForeignKey, Column, Integer, String, Float, DateTime
+
+from backend.database import Base
 
 
-class BaseModel(Model):
-    class Meta:
-        database = db
+class Beer(Base):
+    __tablename__ = "beers"
+    beer_id = Column(Integer, index=True, primary_key=True)
+    name = Column(String)
+    style = Column(String)
+    abv = Column(Float)
+    price = Column(Float)
 
 
-class Beer(BaseModel):
-    id = BigAutoField(index=True, primary_key=True)
-    name = CharField(60)
-    style = CharField(50, null=True)
-    abv = DecimalField(3, 1, constraints=[Check("abv>=0")])
-    price = DecimalField(6, 2, constraints=[Check("price>=0")])
-
-    class Meta:
-        table_name = "beers"
-
-
-class User(BaseModel):
-    id = BigAutoField(index=True, primary_key=True)
-    name = CharField(60)
-    email = CharField(60, unique=True)
-    password = CharField(60)
-    address = CharField(60, null=True)
-    phone = CharField(12, null=True)
-
-    class Meta:
-        table_name = "users"
+class User(Base):
+    __tablename__ = "users"
+    user_id = Column(Integer, index=True, primary_key=True)
+    name = Column(String)
+    email = Column(String, unique=True)
+    password = Column(String)
+    address = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
 
 
-class Order(BaseModel):
-    id = BigAutoField(index=True, primary_key=True)
-    beer_id = ForeignKeyField(Beer)
-    user_id = ForeignKeyField(User)
-    qty = IntegerField()
-    ordered_at = DateTimeField()
-    price_paid = DecimalField(8, 2)
-
-    class Meta:
-        table_name = "orders"
+class Order(Base):
+    __tablename__ = "orders"
+    order_id = Column(Integer, index=True, primary_key=True)
+    beer_id = Column(Integer, ForeignKey("beers.beer_id"), unique=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"), unique=True)
+    qty = Column(Integer)
+    ordered_at = Column(DateTime)
+    price = Column(Float)
 
 
-class Stock(BaseModel):
-    id = BigAutoField()
-    beer_id = ForeignKeyField(Beer, unique=True)
-    date_of_arrival = DateTimeField()
-    qty_in_stock = IntegerField()
-
-    class Meta:
-        table_name = "stock"
+class Stock(Base):
+    __tablename__ = "stock"
+    stock_id = Column(Integer, index=True, primary_key=True)
+    beer_id = Column(Integer, ForeignKey("beers.beer_id"), unique=True)
+    qty_in_stock = Column(Integer)
+    date_of_arrival = Column(DateTime)
