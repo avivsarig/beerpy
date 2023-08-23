@@ -38,3 +38,10 @@ class Stock(Base):
     beer_id = Column(Integer, ForeignKey("beers.beer_id"), unique=True)
     qty_in_stock = Column(Integer)
     date_of_arrival = Column(DateTime)
+
+
+class Migration(Base):
+    __tablename__ = "migrations"
+    migration_id = Column(Integer, index=True, primary_key=True)
+    migration_filename = Column(String)
+    date_of_migration = Column(DateTime)

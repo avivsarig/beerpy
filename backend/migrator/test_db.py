@@ -6,11 +6,11 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 
 def init_db():
-    db_name = settings.DATABASE
-    db_host = settings.PGHOST
-    db_port = settings.PORT
-    db_user = settings.DB_USER
-    db_password = settings.PASSWORD
+    db_name = settings.TEST_DATABASE
+    db_host = settings.TEST_PGHOST
+    db_port = settings.TEST_PORT
+    db_user = settings.TEST_USER
+    db_password = settings.TEST_PASSWORD
 
     SQLALCHEMY_DATABASE_URL = (
         f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
@@ -19,10 +19,10 @@ def init_db():
 
     try:
         connection = engine.connect()
-        print("🔗 Database connection established")
+        print("🔗 Test Database connection established")
     except exc.OperationalError:
         print(
-            "❗ Could not connect to the database. Please check your database settings and connection."
+            "❗ Could not connect to the test database. Please check your database settings and connection."
         )
         sys.exit(1)
 
