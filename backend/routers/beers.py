@@ -29,10 +29,10 @@ async def get_beers(
         filters = query_to_filters(raw_query_string)
 
         query = db.query(models.Beer)
-        for f in filters:
-            column = getattr(models.Beer, f["field"], None)
+        for filter in filters:
+            column = getattr(models.Beer, filter["field"], None)
             if column:
-                query = query.filter(f["op"](column, f["value"]))
+                query = query.filter(filter["op"](column, filter["value"]))
 
         beers = query.offset(skip).limit(limit).all()
         return beers
