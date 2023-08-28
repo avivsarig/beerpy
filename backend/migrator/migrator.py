@@ -1,4 +1,5 @@
-import os, pathlib
+import os, glob
+import pysnooper
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -13,16 +14,13 @@ from backend.utils.error_handler import response_from_error
 
 
 router = APIRouter(prefix="/migrate")
-MIGRATION_FOLDER = int(os.getenv("MIGRATION_FOLDER", settings.MIGRATION_FOLDER))
+MIGRATION_FOLDER = os.getenv("MIGRATION_FOLDER", settings.MIGRATION_FOLDER)
 
 
 @router.post("/initialize")
 async def initialize_database(db: Session = Depends(get_db)):
     try:
-        with open(f"{MIGRATION_FOLDER}0001_init_db.sql", "r") as file:
-            init_script = file.read()
-            db.execute(text(init_script))
-            db.commit()
+        apply_state(1, db)
         return {"detail": "Database initialized successfully!"}
 
     except IntegrityError as e:
@@ -48,11 +46,18 @@ async def get_db_state(db: Session = Depends(get_db)):
         raise HTTPException(status_code=code, detail=message)
 
 
-@router.post("/apply", response_model=list[schemas.Beer], status_code=201)
-async def apply_migrations(migration=schemas.Migration, db: Session = Depends(get_db)):
+@router.post("/apply", response_model=list[schemas.Migration], status_code=201)
+async def apply_migrations(
+    migration=schemas.MigrationBase, db: Session = Depends(get_db)
+):
     try:
         db_migration = models.Migration(**migration.dict())
         db_state = get_db_state(db)
+        if db_migration.id >= db_state.id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot apply {db_migration.migration_filename}\n",
+            )
         # TODO:
         # fetch_pending_migrations(db_state.id, db)
 
@@ -61,18 +66,34 @@ async def apply_migrations(migration=schemas.Migration, db: Session = Depends(ge
         raise HTTPException(status_code=code, detail=message)
 
 
-def id_to_filepath(id: int):
-    id_str = id.rjust(4, "0")
+async def apply_state(id, db: Session = Depends(get_db)):
+    filepath = id_to_filepath(id)
     try:
-        migration_files = list(pathlib.Path(MIGRATION_FOLDER).glob(f"{id_str}_*.qsl"))
+        with open(f"{filepath}", "r") as file:
+            init_script = file.read()
+            db.execute(text(init_script))
+            db.commit()
 
-        if migration_files.length == 1:
+        filename = filepath.replace(MIGRATION_FOLDER, "")
+        return {"detail": f"Database migrated to {filename}!"}
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)
+
+
+def id_to_filepath(id: int):
+    id_str = str(id).rjust(4, "0")
+    try:
+        pattern = f"{MIGRATION_FOLDER}{id_str}_*.sql"
+        migration_files = glob.glob(pattern)
+        if len(migration_files) == 1:
             return migration_files[0]
 
-        elif migration_files.length < 1:
+        elif len(migration_files) < 1:
             raise HTTPException(status_code=404, detail="Migration file not found\n")
 
-        elif migration_files.length > 1:
+        elif len(migration_files) > 1:
             raise HTTPException(
                 status_code=400,
                 detail="Multiple migration files with id={id_str} found\n",
@@ -84,11 +105,3 @@ def id_to_filepath(id: int):
 
 
 # TODO: add rollback
-# @router.post("/rollback")
-# async def rollback_last_migration(db: Session = Depends(get_db)):
-#     try:
-
-
-#     except IntegrityError as e:
-#         code, message = response_from_error(e)
-#         raise HTTPException(status_code=code, detail=message)
