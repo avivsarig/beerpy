@@ -44,7 +44,7 @@ CREATE TABLE stock (
 CREATE TABLE migrations (
     migration_id SERIAL PRIMARY KEY,
     migration_filename VARCHAR NOT NULL,
-    date_of_migration TIMESTAMP WITHOUT TIME ZONE
+    date_of_migration TIMESTAMP WITHOUT TIME ZONE default CURRENT_TIMESTAMP
 );
 
 INSERT INTO migrations (migration_filename, date_of_migration)
