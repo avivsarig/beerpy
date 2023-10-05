@@ -1,45 +1,71 @@
-import os, glob, datetime
+import os
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from backend.migrator.test_db import get_db
 from backend import models, schemas, settings
+
+from backend.migrator.test_db import get_db
+from backend.migrator.migrator_utils import apply_state, list_available_migrations
 
 from backend.utils.error_handler import response_from_error
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
-router = APIRouter(prefix="/migrate")
+router = APIRouter(prefix="/v1/migrator")
 MIGRATION_FOLDER = os.getenv("MIGRATION_FOLDER", settings.MIGRATION_FOLDER)
 
 
-@router.get("/", response_model=list[schemas.Migration])
+@router.get(
+    "/",
+    response_model=list[schemas.Migration],
+    summary="List All Migrations",
+    description="Fetch and return a list of all applied migrations from the database.",
+)
 async def get_migrations(db: Session = Depends(get_db)):
+    logging.info("Fetching all migrations from the database...")
     try:
         query = db.query(models.Migration)
         migrations = query.all()
+
+        logging.info(f"Fetched {len(migrations)} migrations.")
         return migrations
 
     except IntegrityError as e:
         code, message = response_from_error(e)
+        logging.error(f"IntegrityError occurred with code {code}. Message: {message}")
         raise HTTPException(status_code=code, detail=message)
 
 
-@router.post("/init")
-async def initialize_database(db: Session = Depends(get_db)):
+@router.post(
+    "/init",
+    summary="Initialize Database",
+    description="Run the initial migration script to set up the database for the first time.",
+)
+async def initialize_database(db: Session = Depends(get_db)) -> dict:
     try:
+        logging.info("Initializing Database")
+
         await apply_state(MIGRATION_FOLDER + "0001_init_db.sql", db)
         return {"detail": "Database initialized successfully!"}
 
     except IntegrityError as e:
         code, message = response_from_error(e)
+        logging.error(f"IntegrityError occurred with code {code}. Message: {message}")
         raise HTTPException(status_code=code, detail=message)
 
 
-@router.get("/state", response_model=schemas.Migration)
+@router.get(
+    "/state",
+    response_model=schemas.Migration,
+    summary="Get Latest Migration State",
+    description="Retrieve the latest migration that was applied to the database.",
+)
 async def get_db_state(db: Session = Depends(get_db)):
     try:
         last_migration = (
@@ -48,78 +74,43 @@ async def get_db_state(db: Session = Depends(get_db)):
             .first()
         )
         if last_migration is None:
+            logging.warning("No migrations found in the database.")
             raise HTTPException(status_code=404, detail="No migrations found\n")
 
         return last_migration
 
     except IntegrityError as e:
         code, message = response_from_error(e)
+        logging.error(f"IntegrityError occurred with code {code}. Message: {message}")
         raise HTTPException(status_code=code, detail=message)
 
 
-@router.post("/migrate", status_code=201)
+@router.post(
+    "/migrate",
+    status_code=201,
+    response_model=schemas.Migration,
+    summary="Apply Pending Migrations",
+    description="Identify and apply all migrations that are pending since the last applied migration.",
+)
 async def migrate(db: Session = Depends(get_db)):
     try:
         db_state = await get_db_state(db)
-        obj_to_dict_lambda = lambda obj: {
-            c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs
-        }
-        db_state_dict = obj_to_dict_lambda(db_state)
+        db_state_filename = getattr(db_state, "migration_filename")
 
         available_migrations = list_available_migrations()
         pending_migrations = available_migrations[
-            available_migrations.index(
-                MIGRATION_FOLDER + db_state_dict["migration_filename"]
-            )
-            + 1 :
+            available_migrations.index(MIGRATION_FOLDER + db_state_filename) + 1 :
         ]
-
-        print("Migration to perform:")
-        [print(f"{migration_file}") for migration_file in pending_migrations]
-        print("\n")
+        logging.info(f"Found {len(pending_migrations)} pending migrations.")
 
         for migration_file in pending_migrations:
-            res = await apply_state(migration_file, db)
-            print(res)
+            await apply_state(migration_file, db)
 
         return await get_db_state(db)
 
     except IntegrityError as e:
         code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
-
-
-async def apply_state(filepath, db: Session = Depends(get_db)):
-    try:
-        with open(f"{filepath}", "r") as file:
-            init_script = file.read()
-            db.execute(text(init_script))
-            db.commit()
-
-        filename = filepath.replace(MIGRATION_FOLDER, "")
-        return f"Database migrated to {filename}"
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
-
-
-def list_available_migrations():
-    try:
-        pattern = f"{MIGRATION_FOLDER}*.sql"
-        available_migrations = glob.glob(pattern)
-
-        available_migrations.sort(
-            key=lambda filename: int(filename.replace(MIGRATION_FOLDER, "")[:4])
-        )
-
-        if len(available_migrations) == 0:
-            raise HTTPException(status_code=404, detail="No migration files found\n")
-
-        return available_migrations
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
+        logging.error(f"IntegrityError occurred with code {code}. Message: {message}")
         raise HTTPException(status_code=code, detail=message)
 
 
