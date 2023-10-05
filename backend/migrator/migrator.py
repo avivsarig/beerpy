@@ -42,24 +42,6 @@ async def get_migrations(db: Session = Depends(get_db)):
         raise HTTPException(status_code=code, detail=message)
 
 
-@router.post(
-    "/init",
-    summary="Initialize Database",
-    description="Run the initial migration script to set up the database for the first time.",
-)
-async def initialize_database(db: Session = Depends(get_db)) -> dict:
-    try:
-        logging.info("Initializing Database")
-
-        await apply_state(MIGRATION_FOLDER + "0001_init_db.sql", db)
-        return {"detail": "Database initialized successfully!"}
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        logging.error(f"IntegrityError occurred with code {code}. Message: {message}")
-        raise HTTPException(status_code=code, detail=message)
-
-
 @router.get(
     "/state",
     response_model=schemas.Migration,
@@ -86,6 +68,24 @@ async def get_db_state(db: Session = Depends(get_db)):
 
 
 @router.post(
+    "/init",
+    summary="Initialize Database",
+    description="Run the initial migration script to set up the database for the first time.",
+)
+async def initialize_database(db: Session = Depends(get_db)) -> dict:
+    try:
+        logging.info("Initializing Database")
+
+        await apply_state(MIGRATION_FOLDER + "0001_init_db.sql", db)
+        return {"detail": "Database initialized successfully!"}
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        logging.error(f"IntegrityError occurred with code {code}. Message: {message}")
+        raise HTTPException(status_code=code, detail=message)
+
+
+@router.post(
     "/migrate",
     status_code=201,
     response_model=schemas.Migration,
@@ -104,7 +104,26 @@ async def migrate(db: Session = Depends(get_db)):
         logging.info(f"Found {len(pending_migrations)} pending migrations.")
 
         for migration_file in pending_migrations:
+            # Validate before migration the proper sequence is kept
+            db_state = await get_db_state(db)
+            state_id = int(getattr(db_state, "migration_id"))
+            migration_id = int(migration_file.replace(MIGRATION_FOLDER, "")[0:4]) + 1
+
+            if migration_id - state_id != 1:
+                raise HTTPException(
+                    status_code=400, detail="Out of order migration detected."
+                )
+
             await apply_state(migration_file, db)
+
+            # Validate sucessful application
+            new_db_state = await get_db_state(db)
+            state_id = int(getattr(new_db_state, "migration_id"))
+
+            if state_id != migration_id:
+                raise HTTPException(
+                    status_code=500, detail="Migration did not apply as expected."
+                )
 
         return await get_db_state(db)
 
