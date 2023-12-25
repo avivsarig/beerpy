@@ -1,5 +1,5 @@
-fastapi==0.95.1
-peewee==3.14.8
-pytest==7.2.1
-uvicorn==0.20.0
-psycopg2-binary==2.9.2
+fastapi==0.105.0
+pytest==7.4.3
+uvicorn==0.25.0
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.23
