@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from backend import models, schemas, settings
 
-from backend.migrator.test_db import get_db
+from backend.database import get_db
 from backend.migrator.migrator_utils import apply_state, list_available_migrations
 
 from backend.utils.error_handler import response_from_error

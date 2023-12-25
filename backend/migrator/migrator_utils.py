@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from backend import settings
-from backend.migrator.test_db import get_db
+from backend.database import get_db
 from backend.utils.error_handler import response_from_error
 
 MIGRATION_FOLDER = os.getenv("MIGRATION_FOLDER", settings.MIGRATION_FOLDER)
