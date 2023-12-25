@@ -12,3 +12,4 @@ backend/config.json
 
 */.dmypy.json
 .vscode/
+.venv
