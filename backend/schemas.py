@@ -76,3 +76,16 @@ class Stock(StockBase):
 
     class Config:
         orm_mode = True
+
+
+# Migration models
+class MigrationBase(BaseModel):
+    migration_filename: str
+
+
+class Migration(MigrationBase):
+    migration_id: int
+    date_of_migration: datetime
+
+    class Config:
+        orm_mode = True

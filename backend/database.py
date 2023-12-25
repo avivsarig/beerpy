@@ -2,15 +2,14 @@ from backend import settings
 import sys
 
 from sqlalchemy import create_engine, exc
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 
 def init_db():
     db_name = settings.DATABASE
     db_host = settings.PGHOST
     db_port = settings.PORT
-    db_user = settings.USER
+    db_user = settings.DB_USER
     db_password = settings.PASSWORD
 
     SQLALCHEMY_DATABASE_URL = (
