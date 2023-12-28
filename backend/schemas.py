@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date, datetime
 
 
@@ -17,8 +17,7 @@ class BeerCreate(BeerBase):
 class Beer(BeerBase):
     beer_id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # User models
@@ -36,8 +35,7 @@ class UserCreate(UserBase):
 class User(UserBase):
     user_id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Order models
@@ -56,8 +54,7 @@ class OrderCreate(OrderBase):
 class Order(OrderBase):
     order_id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Stock models
@@ -74,8 +71,7 @@ class StockCreate(StockBase):
 class Stock(StockBase):
     stock_id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Migration models
@@ -87,5 +83,4 @@ class Migration(MigrationBase):
     migration_id: int
     date_of_migration: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
