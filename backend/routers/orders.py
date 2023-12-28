@@ -8,9 +8,14 @@ from sqlalchemy.exc import IntegrityError
 from backend.database import get_db
 from backend import models, schemas, settings
 
-from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
-from backend.routers.handler_factory import get_all, get_one, create_one
+from backend.routers.handler_factory import (
+    get_all,
+    get_one,
+    create_one,
+    delete_one,
+    update_one,
+)
 
 PAGE_LIMIT = int(os.getenv("ORDERS_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
 
@@ -24,51 +29,24 @@ async def get_orders(
     skip: int = 0,
     limit: int = PAGE_LIMIT,
 ):
-    return await get_all(models.Order, schemas.Order, request, db, skip, limit)
+    return await get_all(models.Order, request, db, skip, limit)
 
 
 @router.get("/{order_id}", response_model=schemas.Order)
 async def get_order_by_id(order_id: int, db: Session = Depends(get_db)):
-    return await get_one(models.Order, schemas.Order, order_id, db, "order_id")
+    return await get_one(models.Order, order_id, db, "order_id")
 
 
 @router.post("/", response_model=schemas.Order, status_code=201)
 async def create_order(order: schemas.OrderCreate, db: Session = Depends(get_db)):
-    return await create_one(models.Order, schemas.OrderCreate, db)
+    return await create_one(models.Order, order, db)
 
 
 @router.delete("/{order_id}")
 async def delete_order(order_id: int, db: Session = Depends(get_db)):
-    try:
-        db_order = (
-            db.query(models.Order).filter(models.Order.order_id == order_id).first()
-        )
-        if db_order is None:
-            raise HTTPException(status_code=404, detail="Order not found\n")
-        db.delete(db_order)
-        db.commit()
-        return Response(status_code=204)
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
+    return await delete_one(models.Order, order_id, db, "order_id")
 
 
 @router.put("/{order_id}", response_model=schemas.Order)
 async def update(order_id: int, order: schemas.Order, db: Session = Depends(get_db)):
-    try:
-        db_order = (
-            db.query(models.Order).filter(models.Order.order_id == order_id).first()
-        )
-        if db_order is None:
-            raise HTTPException(status_code=404, detail="Order not found\n")
-        for attr, value in order.dict().items():
-            if value is not None:
-                setattr(order, attr, value)
-
-            db.commit()
-            return order
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
+    return await update_one(models.Order, order, order_id, db, "order_id")
