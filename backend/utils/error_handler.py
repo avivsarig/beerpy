@@ -7,9 +7,12 @@ def response_from_error(e) -> tuple[int, str]:
         return 400, message
 
     elif "unique constraint" in error_string.lower():
+        parts = error_string.split('"')
+        model_field = parts[1].split("_")
+        model = model_field[0].capitalize()
+        field = model_field[1].capitalize()
         value = error_string.split("(")[2].split(")")[0]
-        field = error_string.split("(")[1].split(")")[0]
-        message = f"The {field}: {value} already exists"
+        message = f"The {model} {field}: {value} already exists"
         return 400, message
 
     else:
