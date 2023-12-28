@@ -1,7 +1,6 @@
 SHELL := /bin/bash
 
 setup:
-	python3 -m venv .venv
 	pip install -r requirements.txt
 
 serve:
