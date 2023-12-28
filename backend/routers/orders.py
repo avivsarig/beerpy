@@ -10,6 +10,7 @@ from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
+from backend.routers.handler_factory import get_all
 
 PAGE_LIMIT = int(os.getenv("ORDERS_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
 
@@ -23,22 +24,7 @@ async def get_orders(
     skip: int = 0,
     limit: int = PAGE_LIMIT,
 ):
-    try:
-        raw_query_string = str(request.url.query)
-        filters = query_to_filters(raw_query_string)
-
-        query = db.query(models.Order)
-        for filter in filters:
-            column = getattr(models.Order, filter["field"], None)
-            if column:
-                query = query.filter(filter["op"](column, filter["value"]))
-
-        orders = query.offset(skip).limit(limit).all()
-        return orders
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
+    return await get_all(models.Order, schemas.Order, request, db, skip, limit)
 
 
 @router.get("/{order_id}", response_model=schemas.Order)

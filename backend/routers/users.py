@@ -10,6 +10,7 @@ from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
+from backend.routers.handler_factory import get_all
 
 PAGE_LIMIT = int(os.getenv("USER_PAGE_LIMIT", settings.USER_PAGE_LIMIT))
 
@@ -23,22 +24,7 @@ async def get_users(
     skip: int = 0,
     limit: int = PAGE_LIMIT,
 ):
-    try:
-        raw_query_string = str(request.url.query)
-        filters = query_to_filters(raw_query_string)
-
-        query = db.query(models.User)
-        for filter in filters:
-            column = getattr(models.User, filter["field"], None)
-            if column:
-                query = query.filter(filter["op"](column, filter["value"]))
-
-        users = query.offset(skip).limit(limit).all()
-        return users
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
+    return await get_all(models.User, schemas.User, request, db, skip, limit)
 
 
 @router.get("/{user_id}")
