@@ -54,3 +54,20 @@ async def get_one(
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)
+
+
+async def create_one(
+    model: DeclarativeMeta,
+    schema: Type,
+    db: Session = Depends(get_db),
+):
+    try:
+        db_item = model(**schema.model_dump())
+        db.add(db_item)
+        db.commit()
+        db.refresh(db_item)
+        return db_item
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)

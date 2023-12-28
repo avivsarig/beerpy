@@ -10,7 +10,7 @@ from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
-from backend.routers.handler_factory import get_all, get_one
+from backend.routers.handler_factory import get_all, get_one, create_one
 
 
 PAGE_LIMIT = int(os.getenv("STOCK_PAGE_LIMIT", settings.STOCK_PAGE_LIMIT))
@@ -35,16 +35,7 @@ async def get_stock_by_id(stock_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=schemas.Stock, status_code=201)
 async def create_stock(stock: schemas.Stock, db: Session = Depends(get_db)):
-    try:
-        db_stock = models.Stock(**stock.dict())
-        db.add(db_stock)
-        db.commit()
-        db.refresh(db_stock)
-        return db_stock
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
+    return await create_one(models.Stock, schemas.StockCreate, db)
 
 
 @router.delete("/{stock_id}")

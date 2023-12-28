@@ -10,7 +10,7 @@ from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
-from backend.routers.handler_factory import get_all, get_one
+from backend.routers.handler_factory import get_all, get_one, create_one
 
 PAGE_LIMIT = int(os.getenv("BEER_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
 
@@ -34,16 +34,7 @@ async def get_beer_by_id(beer_id: int, db: Session = Depends(get_db)):
 
 @router.post("/", response_model=schemas.Beer, status_code=201)
 async def create_beer(beer: schemas.BeerCreate, db: Session = Depends(get_db)):
-    try:
-        db_beer = models.Beer(**beer.dict())
-        db.add(db_beer)
-        db.commit()
-        db.refresh(db_beer)
-        return db_beer
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
+    return await create_one(models.Beer, schemas.BeerCreate, db)
 
 
 @router.delete("/{beer_id}")
