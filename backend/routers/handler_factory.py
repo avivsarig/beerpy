@@ -36,3 +36,21 @@ async def get_all(
     except IntegrityError as e:
         code, message = response_from_error(e)
         raise HTTPException(status_code=code, detail=message)
+
+
+async def get_one(
+    model: DeclarativeMeta,
+    schema: Type,
+    item_id: int,
+    db: Session = Depends(get_db),
+    id_field: str = "id",
+):
+    try:
+        db_item = db.query(model).filter(getattr(model, id_field) == item_id).first()
+        if db_item is None:
+            raise HTTPException(status_code=404, detail=f"{model.__name__} not found\n")
+        return db_item
+
+    except IntegrityError as e:
+        code, message = response_from_error(e)
+        raise HTTPException(status_code=code, detail=message)

@@ -10,7 +10,7 @@ from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
-from backend.routers.handler_factory import get_all
+from backend.routers.handler_factory import get_all, get_one
 
 PAGE_LIMIT = int(os.getenv("ORDERS_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
 
@@ -29,17 +29,7 @@ async def get_orders(
 
 @router.get("/{order_id}", response_model=schemas.Order)
 async def get_order_by_id(order_id: int, db: Session = Depends(get_db)):
-    try:
-        db_order = (
-            db.query(models.Order).filter(models.Order.order_id == order_id).first()
-        )
-        if db_order is None:
-            raise HTTPException(status_code=404, detail="Order not found")
-        return db_order
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
+    return await get_one(models.Order, schemas.Order, order_id, db, "order_id")
 
 
 @router.post("/", response_model=schemas.Order, status_code=201)

@@ -10,7 +10,7 @@ from backend import models, schemas, settings
 
 from backend.utils.query_to_filters import query_to_filters
 from backend.utils.error_handler import response_from_error
-from backend.routers.handler_factory import get_all
+from backend.routers.handler_factory import get_all, get_one
 
 PAGE_LIMIT = int(os.getenv("USER_PAGE_LIMIT", settings.USER_PAGE_LIMIT))
 
@@ -29,15 +29,7 @@ async def get_users(
 
 @router.get("/{user_id}")
 async def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
-    try:
-        db_user = db.query(models.User).filter(models.User.user_id == user_id).first()
-        if db_user is None:
-            raise HTTPException(status_code=404, detail="User not found\n")
-        return db_user
-
-    except IntegrityError as e:
-        code, message = response_from_error(e)
-        raise HTTPException(status_code=code, detail=message)
+    return await get_one(models.User, schemas.User, user_id, db, "user_id")
 
 
 @router.post("/", response_model=schemas.User, status_code=201)
