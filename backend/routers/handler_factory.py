@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 from typing import Type, List
 
 from fastapi import Depends, HTTPException, Response, Request
@@ -13,7 +14,7 @@ from backend.utils.error_handler import response_from_error
 
 
 async def get_all(
-    model: DeclarativeMeta,
+    model: Type[DeclarativeMeta],
     request: Request,
     db: Session = Depends(get_db),
     skip: int = 0,
@@ -38,7 +39,7 @@ async def get_all(
 
 
 async def get_one(
-    model: DeclarativeMeta,
+    model: Type[DeclarativeMeta],
     item_id: int,
     db: Session = Depends(get_db),
     id_field: str = "id",
@@ -55,8 +56,8 @@ async def get_one(
 
 
 async def create_one(
-    model: DeclarativeMeta,
-    schema: Type,
+    model: Type[DeclarativeMeta],
+    schema: BaseModel,
     db: Session = Depends(get_db),
 ):
     try:
@@ -72,7 +73,7 @@ async def create_one(
 
 
 async def delete_one(
-    model: DeclarativeMeta,
+    model: Type[DeclarativeMeta],
     item_id: int,
     db: Session = Depends(get_db),
     id_field: str = "id",
@@ -91,8 +92,8 @@ async def delete_one(
 
 
 async def update_one(
-    model: DeclarativeMeta,
-    schema: Type,
+    model: Type[DeclarativeMeta],
+    schema: BaseModel,
     item_id: int,
     db: Session = Depends(get_db),
     id_field: str = "id",
