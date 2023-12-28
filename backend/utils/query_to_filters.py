@@ -3,7 +3,7 @@ import urllib.parse as parse
 
 
 def query_to_filters(raw_query_string: str):
-    query_string = parse.unquote(raw_query_string, encoding="utf-8")
+    query_string = parse.unquote(raw_query_string.replace("+", " "), encoding="utf-8")
     query_list = query_string.split("&")
     if query_list[0] == "":
         return []
