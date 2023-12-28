@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 setup:
-	python3 -m venv venv
+	python3 -m venv .venv
 	pip install -r requirements.txt
 
 serve:
@@ -11,4 +11,4 @@ serve:
 clean:
 	sudo find . -type f -name "*.pyc" -delete
 	sudo find . -type d -name "__pycache__" -delete
-	sudo rm -rf venv
+	sudo rm -rf .venv
