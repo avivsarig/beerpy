@@ -41,7 +41,7 @@ def client(db_session):
             yield db_session
         finally:
             db_session.close()
-    
+
     # Override the get_db dependency with the test session
     app.dependency_overrides[get_db] = override_get_db
 
@@ -49,7 +49,6 @@ def client(db_session):
         yield c
 
     app.dependency_overrides.clear()
-
 
 
 def test_get_all_beers(client, db_session):
