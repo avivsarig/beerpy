@@ -1,14 +1,22 @@
 import pytest
+import random
+import os
+
 from fastapi.testclient import TestClient
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from backend import settings
+
 from backend.main import app
 from backend.database import Base, get_db
-
 from backend.models import Beer as BeerModel
-from backend.schemas import Beer, BeerCreate
+
+# TODO:
+# from backend.schemas import Beer, BeerCreate
+
+PAGE_LIMIT = int(os.getenv("BEER_PAGE_LIMIT", settings.BEER_PAGE_LIMIT))
 
 # Setup test database URL
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
@@ -51,11 +59,37 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 
-def test_get_all_beers(client, db_session):
-    beers = [
-        BeerModel(name="Beer1", style="Ale", abv=5.0, price=10.0),
-        BeerModel(name="Beer2", style="Lager", abv=4.5, price=8.0),
+def db_beer_rows_gen(qty: int):
+    beers = []
+
+    styles = [
+        "IPA",
+        "Stout",
+        "Porter",
+        "Pilsner",
+        "Lager",
+        "Wheat Beer",
+        "Sour Ale",
+        "Pale Ale",
+        "Belgian Ale",
+        "Barleywine",
     ]
+
+    for i in range(qty):
+        beers.append(
+            BeerModel(
+                name=f"Beer{i}",
+                style=random.choice(styles),
+                abv=round(random.triangular(0, 21, 5), 1),
+                price=round(random.uniform(0, 250), 1),
+            )
+        )
+
+    return beers
+
+
+def test_get_all(client, db_session):
+    beers = db_beer_rows_gen(150)
     db_session.add_all(beers)
     db_session.commit()
 
@@ -63,10 +97,18 @@ def test_get_all_beers(client, db_session):
     assert response.status_code == 200
 
     data = response.json()
-    assert len(data) == len(beers)
+    assert len(data) == min(len(beers), PAGE_LIMIT)
 
     for i, beer in enumerate(beers):
         assert data[i]["name"] == beer.name
         assert data[i]["style"] == beer.style
         assert data[i]["abv"] == beer.abv
         assert data[i]["price"] == beer.price
+
+
+def test_get_all_empty_list(client, db_session):
+    response = client.get("/beers/")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data == []
